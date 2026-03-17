@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:radio_browser_api/radio_browser_api.dart';
@@ -13,7 +14,8 @@ class AuraStateModel {
 
 class AuraBloc extends Cubit<AuraStateModel> {
   final AudioPlayer _player = AudioPlayer();
-  final RadioBrowserApi _api = RadioBrowserApi();
+  // RadioBrowserApi versiyonuna göre constructor kontrolü
+  final _api = RadioBrowserApi();
 
   AuraBloc() : super(AuraStateModel(AuraState.focus, false, "Aura Rezonansı Bekleniyor..."));
 
@@ -26,14 +28,23 @@ class AuraBloc extends Cubit<AuraStateModel> {
   }
 
   Future<void> _playForMode(AuraState mode) async {
+    // Tag'leri API standartlarına göre netleştirelim
     String tag = mode == AuraState.energy ? 'techno' : (mode == AuraState.chill ? 'lofi' : 'ambient');
     
-    final stations = await _api.getStationsByTag(tag: tag, limit: 10);
-    if (stations.isNotEmpty) {
-      final station = stations[Random().nextInt(stations.length)];
-      await _player.setUrl(station.urlResolved ?? station.url);
-      _player.play();
-      emit(AuraStateModel(mode, true, station.name));
+    try {
+      // limit yerine 'parameters' veya direkt liste üzerinden filtreleme gerekebilir
+      // En güvenli yol: Arama yap ve ilk 10'dan rastgele seç
+      final stations = await _api.getStationsByTag(tag: tag);
+      
+      if (stations.isNotEmpty) {
+        final randomIdx = Random().nextInt(min(stations.length, 10));
+        final station = stations[randomIdx];
+        await _player.setUrl(station.urlResolved);
+        _player.play();
+        emit(AuraStateModel(mode, true, station.name));
+      }
+    } catch (e) {
+      emit(AuraStateModel(mode, false, "Bağlantı Hatası: $e"));
     }
   }
 }
