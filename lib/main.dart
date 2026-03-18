@@ -1,48 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'data/engine/device_context_engine.dart';
+import 'data/engine/aura_memory_engine.dart';
+import 'data/providers/master_audio_repository.dart';
 import 'data/providers/radio_browser_provider.dart';
+import 'data/providers/piped_api_provider.dart';
+import 'data/providers/offline_audio_provider.dart';
 import 'logic/cubit/aura_cubit.dart';
 import 'ui/screens/aura_home.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Status barı gizle (Minimalist tasarım için)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  // Dependency Injection (Uygulama büyüyecekse get_it kullanılabilir, şimdilik manuel)
+  // Hafıza (Memory) Başlatma
+  final prefs = await SharedPreferences.getInstance();
+  final memoryEngine = AuraMemoryEngine(prefs);
+
+  // Core Sistemler
   final contextEngine = DeviceContextEngine();
-  final audioProvider = RadioBrowserProvider();
+  
+  // Ölümsüzlük Zinciri (Chain of Responsibility)
+  final audioRepo = MasterAudioRepository(
+    primaryProvider: RadioBrowserProvider(),
+    fallbackProvider: PipedApiProvider(),
+    offlineProvider: OfflineAudioProvider(),
+  );
 
   runApp(AuraApp(
     contextEngine: contextEngine,
-    audioProvider: audioProvider,
+    memoryEngine: memoryEngine,
+    audioRepo: audioRepo,
   ));
 }
 
 class AuraApp extends StatelessWidget {
   final DeviceContextEngine contextEngine;
-  final RadioBrowserProvider audioProvider;
+  final AuraMemoryEngine memoryEngine;
+  final MasterAudioRepository audioRepo;
 
   const AuraApp({
     Key? key, 
     required this.contextEngine, 
-    required this.audioProvider
+    required this.memoryEngine,
+    required this.audioRepo,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuraCubit(contextEngine, audioProvider),
+      create: (_) => AuraCubit(contextEngine, memoryEngine, audioRepo),
       child: MaterialApp(
         title: 'AURA',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: Colors.black,
-          fontFamily: 'Roboto', // Varsa projeye özel font eklenebilir
+          fontFamily: 'Roboto',
         ),
         home: const AuraHome(),
       ),

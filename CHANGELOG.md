@@ -13,3 +13,11 @@
 
 ## [1.0.0] - İlk Sürüm
 - İvmeölçer tabanlı temel Radio-Browser entegrasyonu.
+
+## [1.2.0] - AURA'nın Zihni ve Ölümsüzlük Güncellemesi
+### Added
+- **Zaman Bağlamı (Circadian Rhythm):** Sabah, öğle ve gece için müzik algoritmaları ayrıştırıldı.
+- **Hafıza (Learning Engine):** Kullanıcı sola kaydırdığında (dislike), Aura artık bunu öğreniyor ve bir sonraki sefer o tarzı açmıyor.
+- **Ölümsüzlük (Fallback Chain):** Radio-Browser çökerse Piped API (Açık Kaynak YouTube) devreye giriyor.
+- **Çevrimdışı Mod:** İnternet tamamen kesilirse cihaz içine gömülü (Ambient) frekans devreye giriyor, AURA asla susmuyor.
+- **Psikolojik Zero-UI:** Kaydırma (Swipe) ve Uzun Basma eylemleri eklendi. Butonsuz tasarım mükemmelleştirildi.

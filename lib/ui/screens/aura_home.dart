@@ -18,13 +18,12 @@ class _AuraHomeState extends State<AuraHome> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    // Zero-UI felsefesi için nefes alma (pulsing) animasyonu
     _breathController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat(reverse: true);
 
-    _breathAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+    _breathAnimation = Tween<double>(begin: 0.85, end: 1.15).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOutSine),
     );
   }
@@ -37,20 +36,9 @@ class _AuraHomeState extends State<AuraHome> with SingleTickerProviderStateMixin
 
   Color _getBgColor(AuraState mode) {
     switch (mode) {
-      case AuraState.energy:
-        return Colors.deepOrange.shade900;
-      case AuraState.chill:
-        return Colors.indigo.shade900;
-      case AuraState.focus:
-        return Colors.teal.shade900;
-    }
-  }
-
-  String _getModeText(AuraState mode) {
-    switch (mode) {
-      case AuraState.energy: return "KİNETİK";
-      case AuraState.chill: return "DİNGİN";
-      case AuraState.focus: return "ODAK";
+      case AuraState.energy: return Colors.deepOrange.shade900;
+      case AuraState.chill: return Colors.indigo.shade900;
+      case AuraState.focus: return Colors.teal.shade900;
     }
   }
 
@@ -61,61 +49,81 @@ class _AuraHomeState extends State<AuraHome> with SingleTickerProviderStateMixin
         final bgColor = state.isPlaying ? _getBgColor(state.mode) : Colors.black87;
 
         return Scaffold(
-          // Ekranın tamamı etkileşim alanıdır (Zero-UI)
           body: GestureDetector(
-            onTap: () => context.read<AuraCubit>().togglePower(),
             behavior: HitTestBehavior.opaque,
+            onTap: () {
+              if (!state.isPlaying) context.read<AuraCubit>().initializeAndStart();
+            },
+            onLongPress: () {
+              if (state.isPlaying) context.read<AuraCubit>().sleep();
+            },
+            onHorizontalDragEnd: (details) {
+              if (!state.isPlaying) return;
+              
+              if (details.primaryVelocity! < 0) {
+                // Sola Kaydırma (Dislike & Öğren)
+                context.read<AuraCubit>().dislikeAndLearn();
+              } else if (details.primaryVelocity! > 0) {
+                // Sağa Kaydırma (Sadece Geç)
+                context.read<AuraCubit>().skip();
+              }
+            },
             child: AnimatedContainer(
               duration: const Duration(seconds: 2),
               color: bgColor,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _breathAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: state.isPlaying ? _breathAnimation.value : 1.0,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _breathAnimation,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: state.isPlaying ? _breathAnimation.value : 1.0,
+                              child: Text(
+                                "AURA",
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(state.isPlaying ? 0.9 : 0.3),
+                                  fontSize: 54,
+                                  fontWeight: FontWeight.w100,
+                                  letterSpacing: 20,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 40),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
                           child: Text(
-                            "AURA",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(state.isPlaying ? 0.9 : 0.3),
-                              fontSize: 54,
-                              fontWeight: FontWeight.w100,
-                              letterSpacing: 20,
+                            state.statusMessage,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w300,
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 40),
-                    if (state.isPlaying) ...[
-                      Text(
-                        _getModeText(state.mode),
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          letterSpacing: 8,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w300,
+                  ),
+                  // Zero-UI Görünmez Rehber (Sadece uyurken görünür)
+                  if (!state.isPlaying)
+                    Positioned(
+                      bottom: 50,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Text(
+                          "Uyanmak için dokun",
+                          style: TextStyle(color: Colors.white24, fontSize: 12, letterSpacing: 4),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: Text(
-                        state.statusMessage,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                    )
+                ],
               ),
             ),
           ),
