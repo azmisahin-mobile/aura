@@ -1,9 +1,15 @@
 # Changelog
 
-## [1.0.0+1] - 2026-03-17
+## [1.1.0] - 2026-03-18
 ### Added
-- İlk resmi sürüm (v1.0.0).
-- Aura Engine: İvmeölçer tabanlı hareket tespiti (Chill, Energy, Focus).
-- Radio-Browser HTTP Provider: 30.000+ radyo istasyonuna erişim.
-- BLoC tabanlı otomatik frekans yönetimi.
-- Özel AURA uygulama ikonu ve minimalist karanlık tema.
+- **Mimari:** Clean Architecture (DDD) standartlarına geçildi.
+- **Context Engine:** Sadece ivmeölçer değil, GPS ile hız entegrasyonu sağlandı (Hız > 20 km/h ise Energy modu).
+- **Smart Fading:** Müzik geçişlerinde sinematik ses kısılıp-açılma (fade in/out) özelliği eklendi.
+- **Zero-UI:** Tüm düğmeler kaldırıldı. Dokunmatik alan genişletildi ve müzik çalarken "Nefes Alan (Pulsing)" logo animasyonu eklendi.
+
+## [1.0.2] - 2026-03-17
+### Fixed
+- CI/CD release izinleri düzeltildi.
+
+## [1.0.0] - İlk Sürüm
+- İvmeölçer tabanlı temel Radio-Browser entegrasyonu.
