@@ -15,3 +15,9 @@
 - **Audio:** `just_audio` (Multi-source streaming)
 - **Context Engine:** `sensors_plus`, `geolocator`
 - **Data Sources:** Radio-Browser API, Piped API (YouTube Audio), Local Storage.
+
+## 🤖 AI Geliştirme
+
+Bu projede AI ile geliştirme yapılmaktadır.
+
+Lütfen `AI_INSTRUCTIONS.md` dosyasını okuyarak geliştirmeye devam edin.

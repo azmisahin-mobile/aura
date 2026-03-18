@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../domain/entities/aura_state_enum.dart';
@@ -12,28 +13,39 @@ class AuraCubit extends Cubit<AuraUIState> {
   final IContextEngine _contextEngine;
   final IAudioProvider _audioProvider;
   StreamSubscription? _contextSubscription;
+  
+  // Çakışma önleyici kimlik
+  int _transitionId = 0;
 
   AuraCubit(this._contextEngine, this._audioProvider)
       : super(AuraUIState(
           mode: AuraState.focus,
           isPlaying: false,
           statusMessage: "Aura'yı uyandırmak için dokun",
-        ));
+        )) {
+    
+    _player.playbackEventStream.listen((event) {}, onError: (Object e, StackTrace stackTrace) {
+      debugPrint('🚨 [AURA_PLAYER] Akış koptu veya link bozuk: $e');
+    });
+  }
 
   Future<void> initializeAndStart() async {
-    if (state.isPlaying) return; // Zaten çalışıyorsa engelle
+    if (state.isPlaying) return; 
 
     emit(state.copyWith(statusMessage: "Bağlam analiz ediliyor...", isPlaying: true));
     
-    await _contextEngine.initializePermissions();
-
+    _contextSubscription?.cancel();
     _contextSubscription = _contextEngine.stateStream.listen((newMode) async {
+      debugPrint('🧠 [AURA_ENGINE] Kesinleşmiş Bağlam: ${newMode.name.toUpperCase()}');
       await _handleStateTransition(newMode);
     });
+
+    await _contextEngine.initializePermissions();
   }
 
   Future<void> togglePower() async {
     if (state.isPlaying) {
+      debugPrint('💤 [AURA_SYSTEM] Aura uyku moduna alındı.');
       await _smartFadeOut();
       await _player.stop();
       _contextSubscription?.cancel();
@@ -44,15 +56,32 @@ class AuraCubit extends Cubit<AuraUIState> {
   }
 
   Future<void> _handleStateTransition(AuraState newMode) async {
+    // Yeni bir geçiş başladı, ID'yi artır
+    _transitionId++;
+    final currentId = _transitionId;
+
     emit(state.copyWith(mode: newMode, statusMessage: "Frekans hizalanıyor..."));
     
     try {
       final streams = await _audioProvider.fetchStreams(newMode);
+      
+      // Eğer radyoyu ararken kullanıcı mod değiştirdiyse, bu işlemi sessizce iptal et
+      if (currentId != _transitionId) {
+        debugPrint('⏩ [AURA_SYSTEM] Yeni mod geldi, eski işlem iptal edildi.');
+        return;
+      }
+
       if (streams.isNotEmpty) {
-        // Rastgele bir istasyon seç
-        final selectedStream = streams[Random().nextInt(streams.length)];
+        final maxIndex = min(5, streams.length);
+        final selectedStream = streams[Random().nextInt(maxIndex)];
+        
+        debugPrint('🎵 [AURA_SYSTEM] Çalınan Frekans: ${selectedStream.name}');
         
         await _smartFadeOut();
+        
+        // Bu noktada hala iptal edilmedik mi kontrol et
+        if (currentId != _transitionId) return;
+
         await _player.setUrl(selectedStream.url);
         emit(state.copyWith(statusMessage: selectedStream.name, currentStream: selectedStream));
         await _smartFadeIn();
@@ -60,16 +89,18 @@ class AuraCubit extends Cubit<AuraUIState> {
         emit(state.copyWith(statusMessage: "Bu mod için kaynak bulunamadı."));
       }
     } catch (e) {
-      emit(state.copyWith(statusMessage: "Bağlantı koptu. Yeniden deneniyor..."));
+      if (currentId == _transitionId) {
+        debugPrint('🚨 [AURA_SYSTEM] Kritik Hata: $e');
+        emit(state.copyWith(statusMessage: "Sinyal Zayıf. Yeniden deneniyor..."));
+      }
     }
   }
 
-  // AI_HANDOVER.md Rule: Smart Fading
   Future<void> _smartFadeOut() async {
     if (!_player.playing) return;
     for (double vol = 1.0; vol >= 0.0; vol -= 0.1) {
       await _player.setVolume(vol);
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 50));
     }
     await _player.pause();
   }
@@ -79,7 +110,7 @@ class AuraCubit extends Cubit<AuraUIState> {
     _player.play();
     for (double vol = 0.0; vol <= 1.0; vol += 0.1) {
       await _player.setVolume(vol);
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 80));
     }
   }
 
