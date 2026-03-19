@@ -1,48 +1,74 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // debugPrint için EKLENDİ
 import 'package:http/http.dart' as http;
 import '../../domain/entities/audio_stream.dart';
 import '../../domain/interfaces/i_audio_provider.dart';
 
 class PipedApiProvider implements IAudioProvider {
-  // Kararlı bir açık kaynak Piped instance'ı
-  final String _apiUrl = "https://pipedapi.kavin.rocks";
+  // Aktif Piped instance'ları (https://github.com/TeamPiped/Piped/wiki/Instances)
+  final List<String> _instances = [
+    "pipedapi.kavin.rocks",
+    "pipedapi.snopyta.org",
+    "pipedapi.adminforge.de",
+    "pipedapi.lunar.icu",
+    "pipedapi.tokhmi.xyz",
+    "pipedapi.moomoo.me",
+  ];
 
   @override
   Future<List<AudioStream>> fetchStreams(String tag) async {
-    final searchUri = Uri.parse("$_apiUrl/search?q=$tag+radio+music&filter=music_songs");
-    
-    final response = await http.get(searchUri).timeout(const Duration(seconds: 6));
-    if (response.statusCode != 200) throw Exception("Piped API Yanıt Vermedi");
+    const searchTimeout = Duration(seconds: 6);
+    const streamTimeout = Duration(seconds: 4);
 
-    final data = jsonDecode(response.body);
-    final List<dynamic> items = data['items'] ?? [];
-    if (items.isEmpty) throw Exception("Piped'de içerik bulunamadı");
+    for (String instance in _instances) {
+      try {
+        // 1. Arama
+        final searchUri = Uri.https(instance, '/search', {
+          'q': '$tag radio music',
+          'filter': 'music_songs',
+        });
+        final searchResponse = await http.get(searchUri).timeout(searchTimeout);
+        if (searchResponse.statusCode != 200) continue;
 
-    List<AudioStream> streams = [];
-    
-    // İlk 3 sonucu al (Hız için)
-    for (int i = 0; i < (items.length > 3 ? 3 : items.length); i++) {
-      final videoId = items[i]['url'].toString().replaceAll('/watch?v=', '');
-      
-      // Video detayından ses akış URL'ini çek
-      final streamUri = Uri.parse("$_apiUrl/streams/$videoId");
-      final streamRes = await http.get(streamUri);
-      
-      if (streamRes.statusCode == 200) {
-        final streamData = jsonDecode(streamRes.body);
-        final List audioStreams = streamData['audioStreams'] ?? [];
-        if (audioStreams.isNotEmpty) {
-          // En düşük boyutlu m4a/opus stream'i al (veri tasarrufu)
-          final bestAudio = audioStreams.firstWhere((s) => s['mimeType'].contains('audio/mp4'), orElse: () => audioStreams.first);
-          streams.add(AudioStream(
-            name: streamData['title'] ?? 'YouTube Sinyali',
-            url: bestAudio['url'],
-            provider: 'Piped',
-          ));
+        final data = jsonDecode(searchResponse.body);
+        final List<dynamic> items = data['items'] ?? [];
+        if (items.isEmpty) continue;
+
+        List<AudioStream> streams = [];
+
+        // İlk 3 sonucu dene
+        for (int i = 0; i < (items.length > 3 ? 3 : items.length); i++) {
+          final videoId = items[i]['url'].toString().replaceAll('/watch?v=', '');
+
+          // 2. Stream bilgisi
+          final streamUri = Uri.https(instance, '/streams/$videoId');
+          final streamRes = await http.get(streamUri).timeout(streamTimeout);
+          if (streamRes.statusCode != 200) continue;
+
+          final streamData = jsonDecode(streamRes.body);
+          final List audioStreams = streamData['audioStreams'] ?? [];
+          if (audioStreams.isNotEmpty) {
+            // En düşük bitrate'li audio stream'i seç (veri tasarrufu)
+            audioStreams.sort((a, b) => (a['bitrate'] ?? 0).compareTo(b['bitrate'] ?? 0));
+            final bestAudio = audioStreams.firstWhere(
+              (s) => s['mimeType'].contains('audio/mp4'),
+              orElse: () => audioStreams.first,
+            );
+            streams.add(AudioStream(
+              name: streamData['title'] ?? 'YouTube Sinyali',
+              url: bestAudio['url'],
+              provider: 'Piped',
+            ));
+          }
         }
+
+        if (streams.isNotEmpty) return streams;
+      } catch (e) {
+        debugPrint('⚠️ Piped instance $instance başarısız: $e');
+        // sonraki instance'a geç
       }
     }
-    
-    return streams;
+    throw Exception("Tüm Piped instance'ları denendi, hiçbiri çalışmıyor.");
   }
 }

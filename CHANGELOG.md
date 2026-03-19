@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.1] - 2026-03-19
+### Added
+- **Çoklu Radio Browser node desteği**: 10 farklı node ile bağlantı dayanıklılığı arttı.
+- **Çoklu Piped API instance desteği**: 6 farklı instance ile yedeklilik sağlandı.
+- **Stream önbellekleme**: Son başarılı stream'ler hafızada tutulur, tüm çevrimiçi kaynaklar başarısız olursa önbellek kullanılır.
+- **Sensör okumalarında moving average**: Daha kararlı durum geçişleri.
+- **GPS pil optimizasyonu**: Daha düşük çözünürlük ve mesafe filtresi ile pil tüketimi azaltıldı.
+- **Hata yönetimi**: Her node/instance başarısızlığı loglanır ve sonrakine geçilir.
+
+### Fixed
+- `debugPrint` kullanılan dosyalara eksik import'lar eklendi (`package:flutter/foundation.dart`).
+
+## [1.2.0] - 2026-03-18
+### Added
+- **Zaman Bağlamı (Circadian Rhythm):** Sabah, öğle ve gece için müzik algoritmaları ayrıştırıldı.
+- **Hafıza (Learning Engine):** Kullanıcı sola kaydırdığında (dislike), Aura artık bunu öğreniyor ve bir sonraki sefer o tarzı açmıyor.
+- **Ölümsüzlük (Fallback Chain):** Radio-Browser çökerse Piped API (Açık Kaynak YouTube) devreye giriyor.
+- **Çevrimdışı Mod:** İnternet tamamen kesilirse cihaz içine gömülü (Ambient) frekans devreye giriyor, AURA asla susmuyor.
+- **Psikolojik Zero-UI:** Kaydırma (Swipe) ve Uzun Basma eylemleri eklendi. Butonsuz tasarım mükemmelleştirildi.
+
+
 ## [1.1.0] - 2026-03-18
 ### Added
 - **Mimari:** Clean Architecture (DDD) standartlarına geçildi.
@@ -13,11 +34,3 @@
 
 ## [1.0.0] - İlk Sürüm
 - İvmeölçer tabanlı temel Radio-Browser entegrasyonu.
-
-## [1.2.0] - AURA'nın Zihni ve Ölümsüzlük Güncellemesi
-### Added
-- **Zaman Bağlamı (Circadian Rhythm):** Sabah, öğle ve gece için müzik algoritmaları ayrıştırıldı.
-- **Hafıza (Learning Engine):** Kullanıcı sola kaydırdığında (dislike), Aura artık bunu öğreniyor ve bir sonraki sefer o tarzı açmıyor.
-- **Ölümsüzlük (Fallback Chain):** Radio-Browser çökerse Piped API (Açık Kaynak YouTube) devreye giriyor.
-- **Çevrimdışı Mod:** İnternet tamamen kesilirse cihaz içine gömülü (Ambient) frekans devreye giriyor, AURA asla susmuyor.
-- **Psikolojik Zero-UI:** Kaydırma (Swipe) ve Uzun Basma eylemleri eklendi. Butonsuz tasarım mükemmelleştirildi.
