@@ -1,78 +1,77 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../domain/entities/audio_stream.dart';
 import '../../domain/interfaces/i_audio_provider.dart';
+import '../engine/api_resolver_engine.dart';
 
 class RadioBrowserProvider implements IAudioProvider {
-  final http.Client _client;
+  final http.Client _client = http.Client();
+  final ApiResolverEngine _resolver;
 
-  // Dependency Injection ile client alıyoruz. (Test edilebilirliği artırır)
-  RadioBrowserProvider({http.Client? client}) : _client = client ?? http.Client();
+  RadioBrowserProvider(this._resolver);
 
-  final List<String> _nodes = [
-    "de1.api.radio-browser.info",
-    "de2.api.radio-browser.info",
-    "nl1.api.radio-browser.info",
-    "fr1.api.radio-browser.info",
-    "at1.api.radio-browser.info",
-    "pl1.api.radio-browser.info",
-    "uk1.api.radio-browser.info",
-    "it1.api.radio-browser.info",
-    "se1.api.radio-browser.info",
-    "ch1.api.radio-browser.info",
-  ];
+  // Radio Browser'ın DNS load balancer'ı. Burası aktif sunucu listesini döner.
+  final String _discoveryUrl = "all.api.radio-browser.info";
+
+  Future<List<String>> _getDynamicNodes() async {
+    try {
+      final res = await _client.get(Uri.https(_discoveryUrl, '/json/servers')).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        return data.map((e) => e['name'].toString()).toList();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [RADIO_BROWSER] DNS Discovery başarısız. Fallback node\'lar kullanılıyor.');
+    }
+    // Discovery çökerse Hardcoded Fallback
+    return [
+      "de1.api.radio-browser.info",
+      "nl1.api.radio-browser.info",
+      "at1.api.radio-browser.info",
+    ];
+  }
 
   @override
   Future<List<AudioStream>> fetchStreams(String tag) async {
-    final headers = {'User-Agent': 'Aura/1.2.0'};
-    const timeout = Duration(seconds: 5);
+    final nodes = await _getDynamicNodes();
+    
+    // Resolver ile en hızlı node'u bul (Health check için ana dizin veya stats kullanılabilir)
+    final bestNode = await _resolver.getFastestInstance(
+      cacheKey: 'radio_browser_best_node',
+      instances: nodes,
+      healthPath: '/json/stats', // Stats endpoint'i en hafif olanıdır
+    );
 
-    // API yük dengesini sağlamak için listeyi her istekte karıştırıyoruz
-    final nodesToTry = List<String>.from(_nodes)..shuffle();
+    final uri = Uri.https(bestNode, '/json/stations/search', {
+      'tag': tag,
+      'limit': '15',
+      'hidebroken': 'true',
+      'order': 'random',
+    });
 
-    for (String node in nodesToTry) {
-      final uri = Uri.https(node, '/json/stations/search', {
-        'tag': tag,
-        'limit': '15',
-        'hidebroken': 'true',
-        'order': 'random',
-      });
-
-      try {
-        final response = await _client.get(uri, headers: headers).timeout(timeout);
-        
-        if (response.statusCode == 200) {
-          final List<dynamic> data = jsonDecode(response.body);
-          
-          // Sunucu ayakta ve geçerli bir cevap verdi. 
-          // Liste boş olsa bile bunu döndürüyoruz ki diğer node'ları boşuna gezmesin.
-          return data
-              .where((s) {
-                final urlRes = s['url_resolved']?.toString().trim() ?? '';
-                final url = s['url']?.toString().trim() ?? '';
-                return urlRes.isNotEmpty || url.isNotEmpty; // Geçersiz URL'leri ele
-              })
-              .map((s) => AudioStream(
-                    name: s['name']?.toString().trim().isNotEmpty == true 
-                          ? s['name'].toString().trim() 
-                          : 'Bilinmeyen Sinyal',
-                    url: (s['url_resolved']?.toString().trim().isNotEmpty == true)
-                          ? s['url_resolved']
-                          : s['url'],
-                    provider: 'RadioBrowser',
-                  ))
-              .toList();
-        } else {
-          debugPrint('⚠️ RadioBrowser node $node başarısız oldu: HTTP ${response.statusCode}');
-        }
-      } catch (e) {
-        debugPrint('⚠️ RadioBrowser node $node bağlantı hatası: $e');
-        // Sadece bağlantı veya timeout hatalarında bir sonraki node'a geç
-      }
+    final response = await _client.get(uri, headers: {'User-Agent': 'Aura/1.3.0'}).timeout(const Duration(seconds: 5));
+    
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data
+          .where((s) {
+            final urlRes = s['url_resolved']?.toString().trim() ?? '';
+            final url = s['url']?.toString().trim() ?? '';
+            return urlRes.isNotEmpty || url.isNotEmpty;
+          })
+          .map((s) => AudioStream(
+                name: s['name']?.toString().trim().isNotEmpty == true 
+                      ? s['name'].toString().trim() 
+                      : 'Bilinmeyen Sinyal',
+                url: (s['url_resolved']?.toString().trim().isNotEmpty == true)
+                      ? s['url_resolved']
+                      : s['url'],
+                provider: 'RadioBrowser ($bestNode)',
+              ))
+          .toList();
     }
     
-    throw Exception("Tüm radyo sunucularına ulaşılamadı. Lütfen internet bağlantınızı kontrol edin.");
+    throw Exception("Radyo yayını alınamadı.");
   }
 }

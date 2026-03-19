@@ -1,14 +1,13 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart'; // debugPrint için EKLENDİ
+import 'package:flutter/foundation.dart';
 import '../../domain/entities/audio_stream.dart';
 import '../../domain/interfaces/i_audio_provider.dart';
 
 class MasterAudioRepository {
   final IAudioProvider primaryProvider; // Radio Browser
-  final IAudioProvider fallbackProvider; // Piped API
+  final IAudioProvider fallbackProvider; // YouTube (Piped + Invidious)
   final IAudioProvider offlineProvider; // Asset Drone
 
-  // Basit bir önbellek: son başarılı stream'leri tutar
   List<AudioStream> _cache = [];
   final int _maxCacheSize = 10;
 
@@ -19,8 +18,8 @@ class MasterAudioRepository {
   });
 
   Future<List<AudioStream>> getAudioStreams(String tag) async {
-    // 1. İnternet kontrolü
     final connectivityResult = await Connectivity().checkConnectivity();
+    // DÜZELTİLEN SATIR BURASI:
     final hasInternet = connectivityResult != ConnectivityResult.none;
 
     if (!hasInternet) {
@@ -28,7 +27,7 @@ class MasterAudioRepository {
       return _getOfflineStreams();
     }
 
-    // 2. Birincil sağlayıcıyı dene
+    // 1. Birincil sağlayıcıyı dene (Radio Browser)
     try {
       final streams = await primaryProvider.fetchStreams(tag);
       if (streams.isNotEmpty) {
@@ -39,25 +38,25 @@ class MasterAudioRepository {
       debugPrint('⚠️ [AURA_CHAIN] Radio Browser çöktü: $e');
     }
 
-    // 3. İkincil sağlayıcıyı dene
+    // 2. İkincil sağlayıcıyı dene (YouTube Fallback: Piped -> Invidious)
     try {
-      debugPrint('🛡️ [AURA_CHAIN] Piped Fallback devrede.');
+      debugPrint('🛡️ [AURA_CHAIN] YouTube Fallback Zinciri devrede.');
       final streams = await fallbackProvider.fetchStreams(tag);
       if (streams.isNotEmpty) {
         _updateCache(streams);
         return streams;
       }
     } catch (e) {
-      debugPrint('⚠️ [AURA_CHAIN] Piped API de çöktü: $e');
+      debugPrint('⚠️ [AURA_CHAIN] YouTube Fallback de çöktü: $e');
     }
 
-    // 4. Önbellekte kayıt var mı?
+    // 3. Önbellek kontrolü
     if (_cache.isNotEmpty) {
       debugPrint('📦 [AURA_CHAIN] Önbellekteki son stream\'ler kullanılıyor.');
       return _cache;
     }
 
-    // 5. Son çare: offline ambiyans
+    // 4. Son çare: Çevrimdışı (Ölümsüzlük)
     debugPrint('🚨 [AURA_CHAIN] Tüm kaynaklar başarısız. Çevrimdışı mod.');
     return _getOfflineStreams();
   }
@@ -67,7 +66,6 @@ class MasterAudioRepository {
   }
 
   Future<List<AudioStream>> _getOfflineStreams() async {
-    // offline drone her zaman aynı, ama istersen farklı offline sesler eklenebilir
     return [
       AudioStream(
         name: "Aura Rezonansı (Çevrimdışı)",
