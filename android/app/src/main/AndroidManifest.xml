@@ -1,14 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Gerekli İzinler (İnternet ve GPS için) -->
+    <!-- Gerekli İzinler -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- ARKA PLAN SES İZİNLERİ -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
     <application
-        android:label="aura"
+        android:label="AURA"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:usesCleartextTraffic="true"> <!-- KRİTİK DÜZELTME: HTTP Radyo yayınlarına izin verir -->
+        android:usesCleartextTraffic="true">
         
         <activity
             android:name=".MainActivity"
@@ -28,6 +33,22 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- SADECE SERVICE VE RECEIVER (Fazla Activity silindi) -->
+        <service android:name="com.ryanheise.audioservice.AudioService"
+                 android:foregroundServiceType="mediaPlayback"
+                 android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+                  android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

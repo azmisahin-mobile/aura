@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import '../../domain/entities/aura_state_enum.dart';
 import '../../domain/entities/audio_stream.dart';
 import '../../data/engine/device_context_engine.dart';
@@ -99,11 +100,23 @@ class AuraCubit extends Cubit<AuraUIState> {
     await _smartFadeOut();
     
     try {
+      // Bildirim ve Kilit Ekranı için Metadata (MediaItem) oluşturuluyor
+      final mediaItem = MediaItem(
+        id: stream.url,
+        album: "Aura ${state.mode.name.toUpperCase()} Mode",
+        title: stream.name,
+        artist: stream.provider,
+      );
+
       if (stream.url.startsWith('asset:///')) {
-        await _player.setAsset(stream.url.replaceFirst('asset:///', ''));
-        await _player.setLoopMode(LoopMode.one); // Offline sesi sonsuz döngüye sok
+        await _player.setAudioSource(
+          AudioSource.uri(Uri.parse(stream.url), tag: mediaItem),
+        );
+        await _player.setLoopMode(LoopMode.one); 
       } else {
-        await _player.setUrl(stream.url);
+        await _player.setAudioSource(
+          AudioSource.uri(Uri.parse(stream.url), tag: mediaItem),
+        );
         await _player.setLoopMode(LoopMode.off);
       }
       

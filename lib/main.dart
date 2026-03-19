@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+
 import 'data/engine/device_context_engine.dart';
 import 'data/engine/aura_memory_engine.dart';
 import 'data/engine/api_resolver_engine.dart';
@@ -12,21 +14,27 @@ import 'data/providers/offline_audio_provider.dart';
 import 'logic/cubit/aura_cubit.dart';
 import 'ui/screens/aura_home.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+  // Arka Plan Ses Servisini Başlat
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.azmisahin.mobile.aura.channel.audio',
+    androidNotificationChannelName: 'Aura Context Engine',
+    androidNotificationOngoing: true,
+    androidShowNotificationBadge: true,
+  );
+
   final prefs = await SharedPreferences.getInstance();
   
-  // Motorlar
   final memoryEngine = AuraMemoryEngine(prefs);
-  final apiResolver = ApiResolverEngine(prefs); // Yeni Network Zekası
+  final apiResolver = ApiResolverEngine(prefs); 
   final contextEngine = DeviceContextEngine();
   
-  // Ölümsüzlük Zinciri (Chain of Responsibility)
   final audioRepo = MasterAudioRepository(
     primaryProvider: RadioBrowserProvider(apiResolver),
-    fallbackProvider: YouTubeFallbackProvider(apiResolver), // Piped + Invidious
+    fallbackProvider: YouTubeFallbackProvider(apiResolver),
     offlineProvider: OfflineAudioProvider(),
   );
 
