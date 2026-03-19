@@ -23,4 +23,10 @@ flutter pub get
 flutter run | grep "flutter"
 ```
 
+Live
+```bash
+flutter clean
+flutter run --release
+```
+
 Lütfen `docs/INSTRUCTIONS.md` , `docs/INSTRUCTIONS.md`, `docs/SPEC.md`, `AURA_ARCHITECTURE_SPEC.md` ve `docs/CHANGELOG.md`  dosylarını okuyarak geliştirmeye devam edin.

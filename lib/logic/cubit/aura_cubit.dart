@@ -30,10 +30,12 @@ class AuraCubit extends Cubit<AuraUIState> {
   StreamSubscription? _contextSubscription;
   StreamSubscription? _playerIndexSubscription;
   StreamSubscription? _playbackEventSubscription; 
+  StreamSubscription? _playerStateSubscription; // ANTI-SESSİZLİK İÇİN
   
   Timer? _rewardTimer; 
-  String? _currentActiveTag; 
+  Timer? _deadAirTimer; // 8 Saniye Sessizlik Sayacı
   
+  String? _currentActiveTag; 
   int _transitionId = 0;
   List<AudioStream> _currentStreams =[];
   bool _isDisliking = false;
@@ -61,15 +63,28 @@ class AuraCubit extends Cubit<AuraUIState> {
     _playbackEventSubscription = _player.playbackEventStream.listen(
       (event) {},
       onError: (Object e, StackTrace stackTrace) async {
-        debugPrint('🚨[AURA_PLAYER] YAYIN KOPTU ($e). Oto-İyileşme -> Sıradakine atlanıyor...');
-        if (_player.hasNext) {
-          await _player.seekToNext();
-          _player.play(); // Oynatmayı yeniden tetikle
-        } else {
-          _handleStateTransition(state.mode);
-        }
+        debugPrint('🚨 [AURA_PLAYER] YAYIN KOPTU ($e). Oto-İyileşme -> Sıradakine atlanıyor...');
+        _forceNext();
       },
     );
+
+    // ANTI-SESSİZLİK (DEAD-AIR) MOTORU
+    _playerStateSubscription = _player.playerStateStream.listen((playerState) {
+      if (playerState.processingState == ProcessingState.loading || 
+          playerState.processingState == ProcessingState.buffering) {
+        
+        // Eğer 8 saniye boyunca bufferda kalırsa, o radyo ölüdür (sessizdir). Hemen geç!
+        if (_deadAirTimer?.isActive != true) {
+          _deadAirTimer = Timer(const Duration(seconds: 8), () {
+            debugPrint('⏳ [AURA_PLAYER] 8 Saniye geçti, ses gelmiyor (Dead-Air). Fişi çekiliyor...');
+            _forceNext();
+          });
+        }
+      } else if (playerState.processingState == ProcessingState.ready) {
+        // Müzik çalmaya başladı, tehlike geçti.
+        _deadAirTimer?.cancel();
+      }
+    });
   }
 
   void _startRewardTimer() {
@@ -81,8 +96,19 @@ class AuraCubit extends Cubit<AuraUIState> {
     });
   }
 
-  void _cancelRewardTimer() {
+  void _cancelTimers() {
     _rewardTimer?.cancel();
+    _deadAirTimer?.cancel();
+  }
+
+  Future<void> _forceNext() async {
+    _cancelTimers();
+    if (_player.hasNext) {
+      await _player.seekToNext();
+      _player.play();
+    } else {
+      _handleStateTransition(state.mode);
+    }
   }
 
   Future<void> initializeAndStart() async {
@@ -100,7 +126,7 @@ class AuraCubit extends Cubit<AuraUIState> {
   Future<void> sleep() async {
     if (!state.isPlaying) return;
     HapticFeedback.vibrate(); 
-    _cancelRewardTimer();
+    _cancelTimers();
     await _smartFadeOut();
     await _player.stop();
     _contextSubscription?.cancel();
@@ -110,26 +136,21 @@ class AuraCubit extends Cubit<AuraUIState> {
   Future<void> skip() async {
     if (!state.isPlaying || _currentStreams.isEmpty) return;
     HapticFeedback.lightImpact(); 
-    _cancelRewardTimer();
+    _cancelTimers();
     
     if (_currentActiveTag != null) {
       _memoryEngine.updateTagScore(_currentActiveTag!, -5);
     }
-
-    if (_player.hasNext) {
-      emit(state.copyWith(statusMessage: "Crossfade: Frekans atlanıyor..."));
-      await _player.seekToNext();
-      _player.play(); // Garantile
-    } else {
-      await _handleStateTransition(state.mode);
-    }
+    
+    emit(state.copyWith(statusMessage: "Crossfade: Frekans atlanıyor..."));
+    await _forceNext();
   }
 
   Future<void> dislikeAndLearn() async {
     if (!state.isPlaying || _isDisliking) return;
     _isDisliking = true;
     HapticFeedback.heavyImpact(); 
-    _cancelRewardTimer();
+    _cancelTimers();
     
     if (_currentActiveTag != null) {
       await _memoryEngine.updateTagScore(_currentActiveTag!, -20);
@@ -191,9 +212,7 @@ class AuraCubit extends Cubit<AuraUIState> {
       await _player.setAudioSource(playlist, initialIndex: 0);
       await _smartFadeIn();
     } catch (e) {
-      debugPrint('🚨 [AURA_PLAYER] İlk frekans bozuk çıktı ($e). Listedeki sıradaki frekansa atlanıyor...');
-      // OTO-İYİLEŞME V2: Eğer ilk şarkı yüklenemezse (setAudioSource patlarsa), 
-      // bozuk olanı listeden at ve kalanıyla tekrar dene!
+      debugPrint('🚨 [AURA_PLAYER] İlk frekans bozuk çıktı. Listedeki sıradaki frekansa atlanıyor...');
       if (streams.length > 1) {
         streams.removeAt(0);
         await _loadPlaylistAndPlay(streams);
@@ -223,10 +242,11 @@ class AuraCubit extends Cubit<AuraUIState> {
 
   @override
   Future<void> close() {
-    _cancelRewardTimer();
+    _cancelTimers();
     _contextSubscription?.cancel();
     _playerIndexSubscription?.cancel();
     _playbackEventSubscription?.cancel();
+    _playerStateSubscription?.cancel();
     _player.dispose();
     return super.close();
   }

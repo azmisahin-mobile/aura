@@ -14,21 +14,18 @@ class AuraMemoryEngine {
   List<String> _generateSmartTags(AuraState state, TimeContext time, WeatherContext weather, String countryCode) {
     List<String> tags =[];
 
-    // 1. EVRENSEL TABAN (Müzik evrenseldir, sınırları kaldırıyoruz)
     if (state == AuraState.chill) tags.addAll(['lofi', 'chillout', 'acoustic', 'downtempo', 'jazz', 'ambient']);
     if (state == AuraState.energy) tags.addAll(['techno', 'house', 'upbeat', 'rock', 'synthwave', 'dance']);
     if (state == AuraState.focus) tags.addAll(['ambient', 'neoclassical', 'study', 'coding', 'instrumental', 'piano']);
 
-    // 2. KÜLTÜREL SOS (Evrensel havuzun başına eklenir, böylece AI hepsini bilir)
     if (countryCode == "TR") {
-      if (state == AuraState.chill) tags.insertAll(0, ['slow', 'turkce']);
-      if (state == AuraState.energy) tags.insertAll(0, ['pop', 'hit', 'arabesk']);
+      if (state == AuraState.chill) tags.insertAll(0,['slow', 'turkce']);
+      if (state == AuraState.energy) tags.insertAll(0,['pop', 'hit', 'arabesk']);
       if (state == AuraState.focus) tags.insertAll(0, ['islamic', 'din', 'klasik', 'ney']);
     } else if (countryCode == "DE") {
       if (state == AuraState.energy) tags.insert(0, 'berlin'); 
     }
 
-    // 3. ÇEVRESEL BÜKÜCÜLER
     if (weather == WeatherContext.rain && state == AuraState.chill) tags.insertAll(0, ['jazz', 'dark ambient']);
     if (weather == WeatherContext.snow) tags.insertAll(0, ['cinematic', 'piano']);
     if (weather == WeatherContext.clear && state == AuraState.energy) tags.insertAll(0, ['pop', 'synthwave']);
@@ -36,7 +33,6 @@ class AuraMemoryEngine {
     if (time == TimeContext.night && state == AuraState.chill) tags.insert(0, 'sleep');
     if (time == TimeContext.morning && state == AuraState.chill) tags.insert(0, 'coffee');
 
-    // Çiftleri temizle ve listeyi dön
     return tags.toSet().toList(); 
   }
 
@@ -56,21 +52,30 @@ class AuraMemoryEngine {
     List<String> pool = _generateSmartTags(state, time, weather, countryCode);
     Map<String, int> weights = _getWeights();
 
-    pool.sort((a, b) {
+    // 1. KARALİSTE FİLTRESİ (Puanı 40'ın altında olan "Nefret Edilenleri" havuzdan tamamen çıkar)
+    List<String> validPool = pool.where((tag) => (weights[tag] ?? 50) >= 40).toList();
+    
+    // Eğer kullanıcı her şeyden nefret ettiyse ve havuz boşaldıysa, sistemi sıfırla (hepsi 50 puan olsun)
+    if (validPool.isEmpty) {
+      debugPrint('⚠️ [AI_SYSTEM] Kullanıcı her şeyden nefret etti. Havuz sıfırlanıyor!');
+      validPool = pool; 
+    }
+
+    validPool.sort((a, b) {
       int scoreA = weights[a] ?? 50;
       int scoreB = weights[b] ?? 50;
-      return scoreB.compareTo(scoreA); // Puanı yüksek olan başa geçer
+      return scoreB.compareTo(scoreA); 
     });
 
-    // %20 İhtimalle yeni bir şey keşfet, %80 ihtimalle kullanıcının en sevdiğini çal
+    // 2. KEŞİF (Sadece nefret edilmeyenler arasından rastgele seç)
     bool explore = _random.nextDouble() < 0.20;
     
     if (explore) {
-      String randomTag = pool[_random.nextInt(pool.length)];
+      String randomTag = validPool[_random.nextInt(validPool.length)];
       debugPrint('🎲 [AI_DECISION] AURA Keşif Modunda: $randomTag denenecek.');
       return randomTag;
     } else {
-      String bestTag = pool.first;
+      String bestTag = validPool.first;
       debugPrint('🧠 [AI_DECISION] AURA Öğrenilmiş Favoriyi Seçti: $bestTag (Puan: ${weights[bestTag] ?? 50})');
       return bestTag;
     }
@@ -82,7 +87,7 @@ class AuraMemoryEngine {
     int newScore = currentScore + delta;
     
     if (newScore > 100) newScore = 100;
-    if (newScore < 0) newScore = 0;
+    if (newScore < 0) newScore = 0; // Puan eksiye düşemez
     
     weights[tag] = newScore;
     await _saveWeights(weights);
@@ -91,6 +96,9 @@ class AuraMemoryEngine {
       debugPrint('📈 [AI_LEARN] AURA Ödüllendirdi: $tag -> $newScore Puan');
     } else {
       debugPrint('📉 [AI_LEARN] AURA Cezalandırdı: $tag -> $newScore Puan');
+      if (newScore < 40) {
+        debugPrint('🚫 [AI_BLACKLIST] "$tag" karalisteye eklendi! Artık çalınmayacak.');
+      }
     }
   }
 }
