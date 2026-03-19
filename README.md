@@ -2,19 +2,25 @@
 
 > "Don't choose your music. Let your life choose the sound."
 
-**AURA**, seçim yorgunluğuna ve abonelik dayatmalarına karşı geliştirilmiş bir "Görünmez Audio Engine"dir. Kullanıcıyı bir arayüze hapsetmek yerine; sensörler, GPS, **Hava Durumu**, **Lokasyon (Ülke)** ve zaman verileriyle kullanıcının o anki "modunu" anlar ve en uygun açık kaynaklı ses akışını başlatır.
+**AURA**, seçim yorgunluğuna ve abonelik dayatmalarına karşı geliştirilmiş, cihazın derinliklerinde yaşayan bir **"Görünmez Audio Engine"**dir.
 
-### 🎧 Neden AURA?
-- **Sıfır Karar (Zero-UI):** Play'e bas ve unut. AURA seninle titreşimlerle (Haptic) konuşur.
-- **Kültürel Lokasyon:** Bulunduğun ülkenin tınılarını hisseder. (Örn: Türkiye'deysen arka planda bir ney veya anadolu rock frekansı yakalayabilir).
-- **Çevresel Farkındalık:** Yağmur yağıyorsa Jazz, güneşliyse Upbeat çalar.
-- **Ölümsüz Motor:** Ekranı kilitle veya telefonu cebine koy. AURA arka planda internet kopsa bile cihazdaki önbelleği kullanır veya çevrimdışı ses üretir.
+### 🧠 AURA Neural Matrix (Zeka Katmanı)
+AURA, seni bir veritabanına hapseden algoritmalar yerine, senin tepkilerini cihaz içinde (Offline) öğrenen bir **Neural Matrix** kullanır:
+- **Öğrenme:** Bir frekansı 30 saniye dinlersen AURA bunu ödüllendirir.
+- **Unutma:** Sola kaydırdığın (Dislike) türler cezalandırılır. Puanı düşen türler karalisteye alınır ve bir daha asla karşına çıkmaz.
+- **Keşif:** %20 ihtimalle sana konfor alanının dışından yeni bir kapı açar.
+
+### 🎧 Öne Çıkan Özellikler
+- **Zero-UI:** Ekrana bakmana gerek yok. AURA titreşimlerle (Haptic) seninle iletişim kurar.
+- **Kültürel & Çevresel Bağlam:** GPS ile ülkeni (TR, DE, vb.), sensörlerle hareketini, hava durumu servisiyle modunu anlar.
+- **Ölümsüz Akış (Auto-Heal):** Kırık linkleri, sessiz yayınları (Dead-Air) ve internet kopmalarını algılar; kendi kendini iyileştirerek akışı asla bozmaz.
 
 ### 🛠️ Teknoloji Yığını
 - **Core:** Flutter (Dart), Clean Architecture (DDD)
-- **Audio & OS:** `just_audio` (Smart Buffering), `just_audio_background`
-- **Context Engine:** `sensors_plus`, `geolocator`, `geocoding`, Open-Meteo API
-- **Data Sources:** Radio-Browser API, Piped/Invidious API, Local Storage.
+- **AI:** Local Reinforcement Learning (Bandit Algorithm)
+- **Context Engine:** `geolocator`, `geocoding`, `sensors_plus`, Open-Meteo API
+- **Audio:** `just_audio` (Smart Buffering & Playlist API)
+
 
 ## 🤖 Geliştirme
 ```bash

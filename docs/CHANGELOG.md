@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.8.0] - Aura Neural Matrix & Dead-Air Shield (2026-03-19)
+### Added
+- **Aura Neural Matrix (Local AI):** Cihaz içinde %100 offline çalışan "Reinforcement Learning" (Pekiştirmeli Öğrenme) katmanı eklendi. Kullanıcının dinleme süresine göre (+Puan) ve geçme/beğenmeme (Dislike) hızına göre (-Puan) türleri öğrenen beyin aktif edildi.
+- **Blacklist (Karaliste) Filtresi:** Puanı kritik eşiğin (40 puan) altına düşen müzik türleri AURA'nın evreninden tamamen silinir; ne "Favori" ne de "Keşif" olarak kullanıcıya bir daha sunulmaz.
+- **Dead-Air Shield (Sessizlik Kalkanı):** Yayıncı taraflı sessiz kalan veya sonsuz yükleme döngüsüne giren radyolar için 8 saniyelik "Anti-Sessizlik" zamanlayıcısı eklendi. Ses gelmiyorsa AURA sessizliği bozar ve otomatik atlar.
+- **Fast-Track GPS:** Uygulama açılışında uyduları beklemek yerine "Son Bilinen Konum" (Last Known) üzerinden 0. milisaniyede ülke tespiti yapılır.
+
+### Fixed
+- **Logic Loop Fix:** Kullanıcının nefret ettiği türlerin "Keşif Modu" adı altında tekrar sunulması (Aptal Merak hatası) karaliste sistemiyle giderildi.
+- **Auto-Heal V2:** Sadece bağlantı hatalarında değil, veri akışının durduğu (Source error) her senaryoda oto-atlama stabilize edildi.
+
 ## [1.7.2] - Fast-Track GPS & Auto-Heal (2026-03-19)
 ### Added
 - **Fast-Track GPS:** Uygulama ilk açıldığında GPS uydularını beklemek yerine cihazın son bilinen (Last Known) lokasyonunu kullanarak 0. saniyede ülkeyi tespit eden algoritma eklendi.

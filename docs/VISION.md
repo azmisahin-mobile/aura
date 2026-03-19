@@ -1,54 +1,15 @@
-# 🌌 AURA – Product Vision
+# 🧬 AURA – Future Vision (Phase 4)
 
-## 🧠 Temel Felsefe
+AURA'nın "Invisible UX" hedefine ulaşması için bir sonraki adımlar:
 
-AURA, kullanıcının müzik seçme zorunluluğunu ortadan kaldıran, sensör tabanlı bir "akış" uygulamasıdır.
+### 1. Dinamik Ön-Yükleme (Predictive Pre-fetching)
+AI hangi etiketi seçeceğine karar verdiği an, arkada sadece 1 değil, 3 farklı radyoyu aynı anda (paralel) buffer'lamaya başlar. Böylece "Skip" tuşuna bastığın an milisaniyeler içinde müzik başlar (Sıfır gecikme).
 
-Spotify ve YouTube gibi platformların yarattığı:
-- karar yorgunluğu
-- arayüz bağımlılığı
-- içerik seçme baskısı
+### 2. Akıllı Uyku & Uyanış (Circadian Alarm)
+Kullanıcının biyolojik saatine göre, gece yarısı müzik sesini yavaşça (30 dakika içinde) kısarak kapatır. Sabah ise güneş doğarken (Hava durumuna bağlı olarak) en sevdiği "morning" frekansıyla sesi yavaşça açar.
 
-problemlerine karşı bir dijital minimalist başkaldırıdır.
+### 3. Sesli Komuta (Invisible Command)
+"Aura, modumu değiştir" veya "Bunu sevmedim" gibi temel sesli komutları, telefon cebindeyken (Bluetooth kulaklık mikrofonu üzerinden) algılayan minimalist bir NLP katmanı.
 
----
-
-## 🎯 Ürün Amacı
-
-- Kullanıcı hiçbir seçim yapmamalı
-- Uygulama görünmez olmalı (invisible UX)
-- Her şey otomatik çalışmalı
-- Kullanıcı sadece "an"ı yaşamalı
-
----
-
-## ⚙️ Temel Davranış
-
-- Hareket algılanır → müzik ritmi değişir
-- Lokasyon değişir → içerik değişir
-- Zaman değişir → mood değişir
-
----
-
-## 🚫 KAÇINILMASI GEREKENLER
-
-- Karmaşık UI
-- Playlist seçme ekranları
-- Kullanıcıya seçenek sunmak
-- Spotify benzeri yapı
-
----
-
-## ✅ OLMASI GEREKENLER
-
-- Otomasyon
-- Basitlik
-- Minimal UI
-- Arka planda çalışan akıllı sistem
-
----
-
-## 🧬 Ürün Karar Prensibi
-
-Şüphede kalırsan:
-→ HER ZAMAN DAHA AZ KULLANICI ETKİLEŞİMİ SEÇ
+### 4. Giyilebilir Entegrasyon (Wearables)
+Apple Watch ve Android Wear desteği ile sensör verilerini doğrudan bilekten (nabız verisiyle birlikte) okuyarak "Heyecan/Stres" durumuna göre müzik tempousunu ayarlama.
