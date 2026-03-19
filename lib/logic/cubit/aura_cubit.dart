@@ -31,9 +31,13 @@ class AuraCubit extends Cubit<AuraUIState> {
   StreamSubscription? _playerIndexSubscription;
   StreamSubscription? _playbackEventSubscription; 
   
+  Timer? _rewardTimer; 
+  String? _currentActiveTag; 
+  
   int _transitionId = 0;
   List<AudioStream> _currentStreams =[];
   bool _isDisliking = false;
+  String? _lastPlayedUrl;
 
   AuraCubit(this._contextEngine, this._memoryEngine, this._audioRepo)
       : super(AuraUIState(
@@ -42,27 +46,43 @@ class AuraCubit extends Cubit<AuraUIState> {
           statusMessage: "Aura'yı uyandırmak için dokun",
         )) {
     
-    // KUSURSUZ SPAM FİLTRESİ
     _playerIndexSubscription = _player.currentIndexStream.distinct().listen((index) {
       if (index != null && _currentStreams.isNotEmpty && index < _currentStreams.length) {
         final stream = _currentStreams[index];
-        debugPrint('🎧[AURA_PLAYER] Şu an çalıyor: ${stream.name} (Kaynak: ${stream.provider})');
-        emit(state.copyWith(statusMessage: stream.name, currentStream: stream));
+        if (_lastPlayedUrl != stream.url) {
+          _lastPlayedUrl = stream.url;
+          debugPrint('🎧 [AURA_PLAYER] Şu an çalıyor: ${stream.name} (Kaynak: ${stream.provider})');
+          emit(state.copyWith(statusMessage: stream.name, currentStream: stream));
+          _startRewardTimer();
+        }
       }
     });
 
-    // OTO-İYİLEŞME
     _playbackEventSubscription = _player.playbackEventStream.listen(
       (event) {},
-      onError: (Object e, StackTrace stackTrace) {
-        debugPrint('🚨 [AURA_PLAYER] YAYIN KOPTU VEYA ÖLÜ LİNK. Oto-İyileşme devrede -> Sıradakine atlanıyor...');
+      onError: (Object e, StackTrace stackTrace) async {
+        debugPrint('🚨[AURA_PLAYER] YAYIN KOPTU ($e). Oto-İyileşme -> Sıradakine atlanıyor...');
         if (_player.hasNext) {
-          _player.seekToNext();
+          await _player.seekToNext();
+          _player.play(); // Oynatmayı yeniden tetikle
         } else {
           _handleStateTransition(state.mode);
         }
       },
     );
+  }
+
+  void _startRewardTimer() {
+    _rewardTimer?.cancel();
+    _rewardTimer = Timer(const Duration(seconds: 30), () {
+      if (_currentActiveTag != null && _player.playing) {
+        _memoryEngine.updateTagScore(_currentActiveTag!, 10);
+      }
+    });
+  }
+
+  void _cancelRewardTimer() {
+    _rewardTimer?.cancel();
   }
 
   Future<void> initializeAndStart() async {
@@ -80,7 +100,7 @@ class AuraCubit extends Cubit<AuraUIState> {
   Future<void> sleep() async {
     if (!state.isPlaying) return;
     HapticFeedback.vibrate(); 
-    debugPrint('💤 [AURA_SYSTEM] Aura derin uykuya geçiyor.');
+    _cancelRewardTimer();
     await _smartFadeOut();
     await _player.stop();
     _contextSubscription?.cancel();
@@ -90,10 +110,16 @@ class AuraCubit extends Cubit<AuraUIState> {
   Future<void> skip() async {
     if (!state.isPlaying || _currentStreams.isEmpty) return;
     HapticFeedback.lightImpact(); 
-    debugPrint('⏭️ [AURA_ACTION] Sonraki frekansa geçiliyor...');
+    _cancelRewardTimer();
+    
+    if (_currentActiveTag != null) {
+      _memoryEngine.updateTagScore(_currentActiveTag!, -5);
+    }
+
     if (_player.hasNext) {
       emit(state.copyWith(statusMessage: "Crossfade: Frekans atlanıyor..."));
       await _player.seekToNext();
+      _player.play(); // Garantile
     } else {
       await _handleStateTransition(state.mode);
     }
@@ -103,15 +129,13 @@ class AuraCubit extends Cubit<AuraUIState> {
     if (!state.isPlaying || _isDisliking) return;
     _isDisliking = true;
     HapticFeedback.heavyImpact(); 
-    debugPrint('🚫[AURA_ACTION] Kullanıcı frekansı sevmedi (Dislike).');
+    _cancelRewardTimer();
+    
+    if (_currentActiveTag != null) {
+      await _memoryEngine.updateTagScore(_currentActiveTag!, -20);
+    }
+
     emit(state.copyWith(statusMessage: "Aura öğreniyor..."));
-    
-    TimeContext time = _contextEngine.getCurrentTimeContext();
-    WeatherContext weather = _contextEngine.getCurrentWeatherContext();
-    String code = _contextEngine.getCurrentCountryCode();
-    String currentTag = _memoryEngine.getBestTag(state.mode, time, weather, code);
-    
-    await _memoryEngine.penalizeTag(state.mode, time, weather, code, currentTag);
     await _handleStateTransition(state.mode);
     _isDisliking = false;
   }
@@ -122,15 +146,15 @@ class AuraCubit extends Cubit<AuraUIState> {
     
     TimeContext time = _contextEngine.getCurrentTimeContext();
     WeatherContext weather = _contextEngine.getCurrentWeatherContext();
-    String country = _contextEngine.getCurrentCountry();
     String code = _contextEngine.getCurrentCountryCode();
     
     String tag = _memoryEngine.getBestTag(newMode, time, weather, code);
+    _currentActiveTag = tag; 
+    
     debugPrint('\n🧠 ================= AURA BEYNİ =================');
     debugPrint('🏃 Biyolojik Mod: ${newMode.name.toUpperCase()}');
     debugPrint('🌤️ Hava Durumu: ${weather.name.toUpperCase()}');
-    debugPrint('🌍 Lokasyon: $country ($code)');
-    debugPrint('🎯 Seçilen Müzik Türü (Tag): $tag');
+    debugPrint('🎯 Seçilen Tür: $tag');
     debugPrint('================================================\n');
 
     if (state.mode != newMode) HapticFeedback.mediumImpact();
@@ -141,7 +165,6 @@ class AuraCubit extends Cubit<AuraUIState> {
       if (currentId != _transitionId) return;
 
       if (_currentStreams.isNotEmpty) {
-        debugPrint('📻 [AURA_NETWORK] ${country} için ${_currentStreams.length} istasyon bulundu.');
         await _loadPlaylistAndPlay(_currentStreams);
       } else {
         emit(state.copyWith(statusMessage: "Sinyal boşluğu."));
@@ -154,7 +177,10 @@ class AuraCubit extends Cubit<AuraUIState> {
   }
 
   Future<void> _loadPlaylistAndPlay(List<AudioStream> streams) async {
+    if (streams.isEmpty) return;
+    
     await _smartFadeOut();
+    _lastPlayedUrl = null;
     try {
       final audioSources = streams.map((s) {
         final mediaItem = MediaItem(id: s.url, album: "Aura ${state.mode.name.toUpperCase()} Mode", title: s.name, artist: s.provider);
@@ -165,7 +191,15 @@ class AuraCubit extends Cubit<AuraUIState> {
       await _player.setAudioSource(playlist, initialIndex: 0);
       await _smartFadeIn();
     } catch (e) {
-      debugPrint('🚨 [AURA_PLAYER] Oynatma hatası: $e');
+      debugPrint('🚨 [AURA_PLAYER] İlk frekans bozuk çıktı ($e). Listedeki sıradaki frekansa atlanıyor...');
+      // OTO-İYİLEŞME V2: Eğer ilk şarkı yüklenemezse (setAudioSource patlarsa), 
+      // bozuk olanı listeden at ve kalanıyla tekrar dene!
+      if (streams.length > 1) {
+        streams.removeAt(0);
+        await _loadPlaylistAndPlay(streams);
+      } else {
+        _handleStateTransition(state.mode);
+      }
     }
   }
 
@@ -189,6 +223,7 @@ class AuraCubit extends Cubit<AuraUIState> {
 
   @override
   Future<void> close() {
+    _cancelRewardTimer();
     _contextSubscription?.cancel();
     _playerIndexSubscription?.cancel();
     _playbackEventSubscription?.cancel();
