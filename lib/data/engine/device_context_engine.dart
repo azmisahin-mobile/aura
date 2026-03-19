@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart'; // debugPrint için EKLENDİ
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../../domain/entities/aura_state_enum.dart';
@@ -17,7 +18,9 @@ class DeviceContextEngine implements IContextEngine {
   bool _isAwake = false;
   bool _hasGpsPermission = false;
 
-  // Basit moving average için
+  WeatherContext _currentWeather = WeatherContext.unknown;
+  DateTime? _lastWeatherFetch;
+
   final List<double> _magnitudes = [];
   static const int _maxSamples = 5;
 
@@ -39,7 +42,6 @@ class DeviceContextEngine implements IContextEngine {
     accelerometerEventStream(samplingPeriod: SensorInterval.normalInterval).listen((event) {
       double magnitude = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
       
-      // Moving average
       _magnitudes.add(magnitude);
       if (_magnitudes.length > _maxSamples) _magnitudes.removeAt(0);
       double avgMagnitude = _magnitudes.reduce((a, b) => a + b) / _magnitudes.length;
@@ -68,11 +70,12 @@ class DeviceContextEngine implements IContextEngine {
     if (_hasGpsPermission) {
       Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium, // Daha az pil tüketimi
-          distanceFilter: 20, // 20 metrede bir güncelle
+          accuracy: LocationAccuracy.medium, 
+          distanceFilter: 20, 
         ),
       ).listen((Position position) {
         _currentSpeedKmH = position.speed * 3.6;
+        _updateWeatherIfNeeded(position.latitude, position.longitude);
         _evaluateContext();
       }, onError: (e) {
         debugPrint('GPS hatası: $e');
@@ -81,13 +84,40 @@ class DeviceContextEngine implements IContextEngine {
     }
   }
 
-  void _evaluateContext() {
-    AuraState targetState;
-    if (_hasGpsPermission && _currentSpeedKmH > 20.0) {
-      targetState = AuraState.energy;
-    } else {
-      targetState = _accelerometerState;
+  Future<void> _updateWeatherIfNeeded(double lat, double lon) async {
+    final now = DateTime.now();
+    // 30 dakikada bir hava durumu güncelle (Pil ve API tasarrufu)
+    if (_lastWeatherFetch != null && now.difference(_lastWeatherFetch!).inMinutes < 30) {
+      return; 
     }
+    _lastWeatherFetch = now;
+    try {
+      final uri = Uri.parse("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true");
+      final res = await http.get(uri).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final code = data['current_weather']['weathercode'] as int;
+        _currentWeather = _mapWeatherCode(code);
+        debugPrint('🌤️ [ENVIRONMENT] Çevresel Bağlam Çözüldü: ${_currentWeather.name.toUpperCase()}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ENVIRONMENT] Hava durumu alınamadı: $e');
+    }
+  }
+
+  WeatherContext _mapWeatherCode(int code) {
+    if (code == 0 || code == 1) return WeatherContext.clear;
+    if (code >= 2 && code <= 48) return WeatherContext.cloudy;
+    if (code >= 51 && code <= 67) return WeatherContext.rain;
+    if (code >= 71 && code <= 86) return WeatherContext.snow;
+    if (code >= 95) return WeatherContext.rain; 
+    return WeatherContext.unknown;
+  }
+
+  void _evaluateContext() {
+    AuraState targetState = (_hasGpsPermission && _currentSpeedKmH > 20.0) 
+        ? AuraState.energy 
+        : _accelerometerState;
 
     if (_lastEmittedState == targetState) {
       _debounceTimer?.cancel();
@@ -115,4 +145,6 @@ class DeviceContextEngine implements IContextEngine {
     if (hour >= 18 && hour < 23) return TimeContext.evening;
     return TimeContext.night;
   }
+
+  WeatherContext getCurrentWeatherContext() => _currentWeather;
 }

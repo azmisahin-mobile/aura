@@ -6,41 +6,55 @@ class AuraMemoryEngine {
 
   AuraMemoryEngine(this._prefs);
 
-  // Standart felsefe eşleşmeleri
-  final Map<String, List<String>> _baseTags = {
-    'chill_morning': ['acoustic', 'lofi', 'jazz'],
-    'chill_afternoon': ['lofi', 'chillout', 'reggae'],
-    'chill_evening': ['downtempo', 'lofi', 'lounge'],
-    'chill_night': ['dark ambient', 'drone', 'sleep'],
-    
-    'focus_morning': ['neoclassical', 'piano', 'ambient'],
-    'focus_afternoon': ['study', 'ambient', 'classical'],
-    'focus_evening': ['coding', 'synthwave', 'ambient'],
-    'focus_night': ['space', 'deep focus', 'binaural'],
+  String _getKey(AuraState state, TimeContext time, WeatherContext weather) => 
+      '${state.name}_${time.name}_${weather.name}';
 
-    'energy_morning': ['upbeat', 'pop', 'house'],
-    'energy_afternoon': ['rock', 'techno', 'edm'],
-    'energy_evening': ['techno', 'trance', 'dnb'],
-    'energy_night': ['hardstyle', 'techno', 'phonk'],
-  };
+  // Çevresel ve biyolojik verilere göre en uygun havuzu oluşturur
+  List<String> _generateSmartTags(AuraState state, TimeContext time, WeatherContext weather) {
+    List<String> tags = [];
 
-  String _getKey(AuraState state, TimeContext time) => '${state.name}_${time.name}';
+    // 1. Temel Durum Bağlamı
+    if (state == AuraState.chill) tags.addAll(['lofi', 'chillout', 'acoustic', 'downtempo']);
+    if (state == AuraState.energy) tags.addAll(['techno', 'house', 'upbeat', 'rock']);
+    if (state == AuraState.focus) tags.addAll(['ambient', 'neoclassical', 'study', 'coding']);
 
-  // Kullanıcının seveceği tag'i bul (Beğenmedikleri arkaya itilir)
-  String getBestTag(AuraState state, TimeContext time) {
-    String key = _getKey(state, time);
-    List<String> userTags = _prefs.getStringList(key) ?? _baseTags[key]!;
+    // 2. Çevresel Bağlam (Hava Durumu Bükücü)
+    if (weather == WeatherContext.rain && state == AuraState.chill) {
+      tags.insertAll(0, ['jazz', 'dark ambient']); // Yağmurda chill dinliyorsa başa jazz koy
+    }
+    if (weather == WeatherContext.snow) {
+      tags.insertAll(0, ['cinematic', 'piano']); // Karda sinematik etki yarat
+    }
+    if (weather == WeatherContext.clear && state == AuraState.energy) {
+      tags.insertAll(0, ['pop', 'synthwave']); // Güneşli havada enerjikse pop/synthwave koy
+    }
+
+    // 3. Zaman Bağlamı
+    if (time == TimeContext.night && state == AuraState.chill) {
+      tags.insert(0, 'sleep');
+    }
+    if (time == TimeContext.morning && state == AuraState.chill) {
+      tags.insert(0, 'coffee');
+    }
+
+    return tags.toSet().toList(); // Çift olanları sil
+  }
+
+  // Kullanıcının seveceği tag'i bul
+  String getBestTag(AuraState state, TimeContext time, WeatherContext weather) {
+    String key = _getKey(state, time, weather);
+    List<String> userTags = _prefs.getStringList(key) ?? _generateSmartTags(state, time, weather);
     return userTags.first;
   }
 
   // Sola kaydırdığında (Beğenmediğinde) bu tag'i listenin sonuna at, yeniyi öne al
-  Future<void> penalizeTag(AuraState state, TimeContext time, String dislikedTag) async {
-    String key = _getKey(state, time);
-    List<String> tags = _prefs.getStringList(key) ?? _baseTags[key]!;
+  Future<void> penalizeTag(AuraState state, TimeContext time, WeatherContext weather, String dislikedTag) async {
+    String key = _getKey(state, time, weather);
+    List<String> tags = _prefs.getStringList(key) ?? _generateSmartTags(state, time, weather);
     
     if (tags.contains(dislikedTag)) {
       tags.remove(dislikedTag);
-      tags.add(dislikedTag); // Sona at
+      tags.add(dislikedTag); // Dinlenmeyen türü ceza olarak kuyruğun sonuna it
       await _prefs.setStringList(key, tags);
     }
   }
