@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.0] - 2026-03-19
+### Added
+- **Fluid Mesh Gradient (Sıvı Arka Plan):** AURA'nın durumu (Enerji, Odak, Chill) ve Hava Durumuna (Güneşli, Yağmurlu) göre renk değiştiren, sıvı gibi akan organik ve nefes alan görsel arayüz tasarımı eklendi.
+- **Dinamik Hız Optimizasyonu:** Müzik "Energy" moduna geçtiğinde arka plandaki renklerin dalgalanma hızı matematiksel olarak artırıldı.
+
 ## [1.5.0] - 2026-03-19
 ### Added
 - **Çevresel Zeka (Weather Context):** GPS üzerinden Open-Meteo API'ye bağlanılarak anlık hava durumu (Yağmur, Kar, Güneş, Bulutlu) algılama sistemi eklendi.

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart'; // Dokunsal İletişim (Haptic) için eklendi
+import 'package:flutter/services.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -32,8 +32,9 @@ class AuraCubit extends Cubit<AuraUIState> {
   Future<void> initializeAndStart() async {
     if (state.isPlaying) return; 
     
-    HapticFeedback.vibrate(); // Uyandırma Titreşimi
-    emit(state.copyWith(statusMessage: "Biyolojik ritim analiz ediliyor...", isPlaying: true));
+    HapticFeedback.vibrate(); 
+    WeatherContext weather = _contextEngine.getCurrentWeatherContext();
+    emit(state.copyWith(statusMessage: "Biyolojik ritim analiz ediliyor...", isPlaying: true, weather: weather));
     
     _contextSubscription?.cancel();
     _contextSubscription = _contextEngine.stateStream.listen((newMode) async {
@@ -45,7 +46,7 @@ class AuraCubit extends Cubit<AuraUIState> {
 
   Future<void> sleep() async {
     if (!state.isPlaying) return;
-    HapticFeedback.vibrate(); // Uyku Titreşimi
+    HapticFeedback.vibrate(); 
     debugPrint('💤 [AURA_SYSTEM] Aura derin uykuya geçiyor.');
     await _smartFadeOut();
     await _player.stop();
@@ -53,19 +54,17 @@ class AuraCubit extends Cubit<AuraUIState> {
     emit(state.copyWith(isPlaying: false, statusMessage: "Aura Uykuya Geçti"));
   }
 
-  // Swipe Right: Sadece başka bir yayına geç
   Future<void> skip() async {
     if (!state.isPlaying || _currentPlaylist.isEmpty) return;
-    HapticFeedback.lightImpact(); // Hafif Titreşim (Anladım, geçiyorum)
+    HapticFeedback.lightImpact(); 
     
     _playIndex = (_playIndex + 1) % _currentPlaylist.length;
     await _playStream(_currentPlaylist[_playIndex]);
   }
 
-  // Swipe Left: Bunu sevmedim, öğren ve değiştir
   Future<void> dislikeAndLearn() async {
     if (!state.isPlaying) return;
-    HapticFeedback.heavyImpact(); // Ağır Titreşim (Seni anladım, hafızama kazıdım)
+    HapticFeedback.heavyImpact(); 
     
     emit(state.copyWith(statusMessage: "Aura öğreniyor... Yeni frekans taranıyor."));
     
@@ -73,10 +72,7 @@ class AuraCubit extends Cubit<AuraUIState> {
     WeatherContext weather = _contextEngine.getCurrentWeatherContext();
     String currentTag = _memoryEngine.getBestTag(state.mode, time, weather);
     
-    // Hafızaya yaz (Cezalandır)
     await _memoryEngine.penalizeTag(state.mode, time, weather, currentTag);
-    
-    // Yeni tag ile tekrar yükle
     await _handleStateTransition(state.mode);
   }
 
@@ -88,12 +84,12 @@ class AuraCubit extends Cubit<AuraUIState> {
     WeatherContext weather = _contextEngine.getCurrentWeatherContext();
     String tag = _memoryEngine.getBestTag(newMode, time, weather);
 
-    // Durum değiştiğinde kullanıcıyı ekrana bakmadan haberdar et
     if (state.mode != newMode) {
       HapticFeedback.mediumImpact();
     }
 
-    emit(state.copyWith(mode: newMode, statusMessage: "Frekans hizalanıyor..."));
+    // ARTIK HAVA DURUMUNU DA UI'A GÖNDERİYORUZ (Sıvı renkler için)
+    emit(state.copyWith(mode: newMode, weather: weather, statusMessage: "Frekans hizalanıyor..."));
     
     try {
       _currentPlaylist = await _audioRepo.getAudioStreams(tag);

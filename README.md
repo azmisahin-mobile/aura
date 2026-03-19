@@ -5,10 +5,10 @@
 **AURA**, seçim yorgunluğuna ve abonelik dayatmalarına karşı geliştirilmiş bir "Görünmez Audio Engine"dir. Kullanıcıyı bir arayüze hapsetmek yerine; sensörler, GPS, **Hava Durumu** ve zaman verileriyle kullanıcının o anki "modunu" anlar ve en uygun açık kaynaklı ses akışını başlatır.
 
 ### 🎧 Neden AURA?
-- **Sıfır Karar (Zero-UI):** Play'e bas ve unut. Buton yok, arama yok. Ekrana bakmana bile gerek yok, AURA seninle **titreşimlerle (Haptic)** iletişim kurar.
+- **Sıfır Karar (Zero-UI):** Play'e bas ve unut. Ekrana bakmana gerek yok, AURA seninle **titreşimlerle (Haptic)** iletişim kurar.
+- **Organik Görsellik:** AURA'nın ekranı düz bir renk değildir; biyolojik moduna ve hava durumuna göre sıvı gibi akan, nefes alan bir **Mesh Gradient**'tir.
 - **Çevresel Farkındalık:** Yağmur yağıyorsa Jazz, güneşliyse Upbeat, gece yarısıysa Dark Ambient çalar.
-- **Sıfır Abonelik:** Sadece özgür ve açık kaynaklar (Radio Browser, Piped, Invidious).
-- **Ölümsüz Motor:** Ekranı kilitle veya telefonu cebine koy. AURA arka planda sensörleri okumaya ve hızına göre ritmi değiştirmeye devam eder.
+- **Ölümsüz Motor:** Ekranı kilitle veya telefonu cebine koy. AURA arka planda sensörleri okumaya devam eder.
 
 ### 🛠️ Teknoloji Yığını
 - **Core:** Flutter (Dart), Clean Architecture (DDD)
@@ -18,4 +18,4 @@
 
 ## 🤖 Geliştirme
 
-Lütfen `AI_INSTRUCTIONS.md` ve `SPEC.MD` dosylarını okuyarak geliştirmeye devam edin.
+Lütfen `docs/INSTRUCTIONS.md` , `docs/INSTRUCTIONS.md`, `docs/SPEC.md`, `AURA_ARCHITECTURE_SPEC.md`  dosylarını okuyarak geliştirmeye devam edin.
