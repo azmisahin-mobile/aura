@@ -17,9 +17,8 @@ class MasterAudioRepository {
     required this.offlineProvider,
   });
 
-  Future<List<AudioStream>> getAudioStreams(String tag) async {
+  Future<List<AudioStream>> getAudioStreams({required String tag, required String country}) async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    // DÜZELTİLEN SATIR BURASI:
     final hasInternet = connectivityResult != ConnectivityResult.none;
 
     if (!hasInternet) {
@@ -29,7 +28,7 @@ class MasterAudioRepository {
 
     // 1. Birincil sağlayıcıyı dene (Radio Browser)
     try {
-      final streams = await primaryProvider.fetchStreams(tag);
+      final streams = await primaryProvider.fetchStreams(tag: tag, country: country);
       if (streams.isNotEmpty) {
         _updateCache(streams);
         return streams;
@@ -41,7 +40,7 @@ class MasterAudioRepository {
     // 2. İkincil sağlayıcıyı dene (YouTube Fallback: Piped -> Invidious)
     try {
       debugPrint('🛡️ [AURA_CHAIN] YouTube Fallback Zinciri devrede.');
-      final streams = await fallbackProvider.fetchStreams(tag);
+      final streams = await fallbackProvider.fetchStreams(tag: tag, country: country);
       if (streams.isNotEmpty) {
         _updateCache(streams);
         return streams;

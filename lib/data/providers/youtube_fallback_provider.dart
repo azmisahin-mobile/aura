@@ -5,14 +5,12 @@ import '../../domain/entities/audio_stream.dart';
 import '../../domain/interfaces/i_audio_provider.dart';
 import '../engine/api_resolver_engine.dart';
 
-/// Bu Provider, Piped çöktüğünde Invidious'a, Invidious çökerse başka bir node'a geçer.
 class YouTubeFallbackProvider implements IAudioProvider {
   final ApiResolverEngine _resolver;
   final http.Client _client = http.Client();
 
   YouTubeFallbackProvider(this._resolver);
 
-  // En stabil Piped instance'ları
   final List<String> _pipedInstances = [
     "pipedapi.adminforge.de",
     "pipedapi.syncpundit.io",
@@ -20,7 +18,6 @@ class YouTubeFallbackProvider implements IAudioProvider {
     "pipedapi.tokhmi.xyz"
   ];
 
-  // Alternatif Invidious instance'ları
   final List<String> _invidiousInstances = [
     "yewtu.be",
     "inv.nadeko.net",
@@ -28,31 +25,31 @@ class YouTubeFallbackProvider implements IAudioProvider {
   ];
 
   @override
-  Future<List<AudioStream>> fetchStreams(String tag) async {
-    // 1. Önce Piped API'yi Dene
+  Future<List<AudioStream>> fetchStreams({required String tag, required String country}) async {
+    String searchString = country != "Unknown" ? "$country $tag ambient music" : "$tag ambient music";
+
     try {
       final bestPiped = await _resolver.getFastestInstance(
         cacheKey: 'piped_best_node',
         instances: _pipedInstances,
-        healthPath: '/trending', // Piped health check
+        healthPath: '/trending', 
       );
       
-      final streams = await _fetchFromPiped(bestPiped, tag);
+      final streams = await _fetchFromPiped(bestPiped, searchString);
       if (streams.isNotEmpty) return streams;
     } catch (e) {
       debugPrint('⚠️ [YOUTUBE] Tüm Piped instance\'ları çöktü: $e');
     }
 
-    // 2. Piped İşe Yaramazsa Invidious API'ye Geç
     debugPrint('🛡️ [YOUTUBE] Invidious (Fallback) devrede...');
     try {
       final bestInvidious = await _resolver.getFastestInstance(
         cacheKey: 'invidious_best_node',
         instances: _invidiousInstances,
-        healthPath: '/api/v1/trending', // Invidious health check
+        healthPath: '/api/v1/trending', 
       );
 
-      final streams = await _fetchFromInvidious(bestInvidious, tag);
+      final streams = await _fetchFromInvidious(bestInvidious, searchString);
       if (streams.isNotEmpty) return streams;
     } catch (e) {
       debugPrint('⚠️ [YOUTUBE] Invidious instance\'ları da çöktü: $e');
@@ -61,8 +58,8 @@ class YouTubeFallbackProvider implements IAudioProvider {
     throw Exception("YouTube altyapısı (Piped & Invidious) tamamen devre dışı.");
   }
 
-  Future<List<AudioStream>> _fetchFromPiped(String instance, String tag) async {
-    final searchUri = Uri.https(instance, '/search', {'q': '$tag ambient music', 'filter': 'music_songs'});
+  Future<List<AudioStream>> _fetchFromPiped(String instance, String searchString) async {
+    final searchUri = Uri.https(instance, '/search', {'q': searchString, 'filter': 'music_songs'});
     final searchRes = await _client.get(searchUri).timeout(const Duration(seconds: 4));
     
     if (searchRes.statusCode != 200) return [];
@@ -91,8 +88,8 @@ class YouTubeFallbackProvider implements IAudioProvider {
     return streams;
   }
 
-  Future<List<AudioStream>> _fetchFromInvidious(String instance, String tag) async {
-    final searchUri = Uri.https(instance, '/api/v1/search', {'q': '$tag ambient music', 'type': 'video'});
+  Future<List<AudioStream>> _fetchFromInvidious(String instance, String searchString) async {
+    final searchUri = Uri.https(instance, '/api/v1/search', {'q': searchString, 'type': 'video'});
     final searchRes = await _client.get(searchUri).timeout(const Duration(seconds: 4));
     
     if (searchRes.statusCode != 200) return [];

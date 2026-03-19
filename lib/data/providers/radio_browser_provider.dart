@@ -11,7 +11,6 @@ class RadioBrowserProvider implements IAudioProvider {
 
   RadioBrowserProvider(this._resolver);
 
-  // Radio Browser'ın DNS load balancer'ı. Burası aktif sunucu listesini döner.
   final String _discoveryUrl = "all.api.radio-browser.info";
 
   Future<List<String>> _getDynamicNodes() async {
@@ -24,7 +23,6 @@ class RadioBrowserProvider implements IAudioProvider {
     } catch (e) {
       debugPrint('⚠️ [RADIO_BROWSER] DNS Discovery başarısız. Fallback node\'lar kullanılıyor.');
     }
-    // Discovery çökerse Hardcoded Fallback
     return [
       "de1.api.radio-browser.info",
       "nl1.api.radio-browser.info",
@@ -33,24 +31,46 @@ class RadioBrowserProvider implements IAudioProvider {
   }
 
   @override
-  Future<List<AudioStream>> fetchStreams(String tag) async {
+  Future<List<AudioStream>> fetchStreams({required String tag, required String country}) async {
     final nodes = await _getDynamicNodes();
-    
-    // Resolver ile en hızlı node'u bul (Health check için ana dizin veya stats kullanılabilir)
     final bestNode = await _resolver.getFastestInstance(
       cacheKey: 'radio_browser_best_node',
       instances: nodes,
-      healthPath: '/json/stats', // Stats endpoint'i en hafif olanıdır
+      healthPath: '/json/stats',
     );
 
-    final uri = Uri.https(bestNode, '/json/stations/search', {
+    // 1. Önce o ülkede ara
+    debugPrint('📡 [API_CALL] Lokasyon bazlı aranıyor -> Ülke: $country | Tag: $tag');
+    List<AudioStream> streams = await _searchApi(bestNode, tag, country);
+
+    // 2. Ülkede bulamazsa tüm dünyada (Global) ara
+    if (streams.isEmpty) {
+      debugPrint('⚠️ [API_CALL] $country sınırlarında $tag bulunamadı. Tüm dünya taranıyor...');
+      streams = await _searchApi(bestNode, tag, ""); 
+    }
+
+    if (streams.isNotEmpty) {
+      return streams;
+    }
+    
+    throw Exception("Radyo yayını hiçbir yerde bulunamadı.");
+  }
+
+  Future<List<AudioStream>> _searchApi(String node, String tag, String country) async {
+    final queryParams = {
       'tag': tag,
       'limit': '15',
       'hidebroken': 'true',
       'order': 'random',
-    });
+    };
 
-    final response = await _client.get(uri, headers: {'User-Agent': 'Aura/1.3.0'}).timeout(const Duration(seconds: 5));
+    if (country.isNotEmpty && country != "Unknown") {
+      queryParams['country'] = country;
+    }
+
+    final uri = Uri.https(node, '/json/stations/search', queryParams);
+    
+    final response = await _client.get(uri, headers: {'User-Agent': 'Aura/1.7.1'}).timeout(const Duration(seconds: 5));
     
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -67,11 +87,10 @@ class RadioBrowserProvider implements IAudioProvider {
                 url: (s['url_resolved']?.toString().trim().isNotEmpty == true)
                       ? s['url_resolved']
                       : s['url'],
-                provider: 'RadioBrowser ($bestNode)',
+                provider: 'RadioBrowser ($node)',
               ))
           .toList();
     }
-    
-    throw Exception("Radyo yayını alınamadı.");
+    return [];
   }
 }

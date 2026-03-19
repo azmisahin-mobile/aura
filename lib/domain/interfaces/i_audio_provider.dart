@@ -1,6 +1,5 @@
 import '../entities/audio_stream.dart';
 
 abstract class IAudioProvider {
-  // Artık sadece durum değil, öğrenilmiş spesifik "tag" (tür) aranıyor
-  Future<List<AudioStream>> fetchStreams(String tag);
+  Future<List<AudioStream>> fetchStreams({required String tag, required String country});
 }

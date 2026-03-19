@@ -12,7 +12,6 @@ import '../../data/providers/master_audio_repository.dart';
 import 'aura_state.dart';
 
 class AuraCubit extends Cubit<AuraUIState> {
-  // Faz 3: Akıllı Buffer Kontrolü (İnternet koptuğunda kesilmemesi için)
   final AudioPlayer _player = AudioPlayer(
     audioLoadConfiguration: const AudioLoadConfiguration(
       androidLoadControl: AndroidLoadControl(
@@ -32,7 +31,7 @@ class AuraCubit extends Cubit<AuraUIState> {
   StreamSubscription? _playerIndexSubscription;
   int _transitionId = 0;
   List<AudioStream> _currentStreams = [];
-  bool _isDisliking = false; // Spam engelleme
+  bool _isDisliking = false;
 
   AuraCubit(this._contextEngine, this._memoryEngine, this._audioRepo)
       : super(AuraUIState(
@@ -40,10 +39,10 @@ class AuraCubit extends Cubit<AuraUIState> {
           isPlaying: false,
           statusMessage: "Aura'yı uyandırmak için dokun",
         )) {
-    // OS üzerinden veya kilit ekranından şarkı değişirse UI'ı güncelle
     _playerIndexSubscription = _player.currentIndexStream.listen((index) {
       if (index != null && _currentStreams.isNotEmpty && index < _currentStreams.length) {
         final stream = _currentStreams[index];
+        debugPrint('🎧 [AURA_PLAYER] Şu an çalıyor: ${stream.name} (Kaynak: ${stream.provider})');
         emit(state.copyWith(statusMessage: stream.name, currentStream: stream));
       }
     });
@@ -74,16 +73,14 @@ class AuraCubit extends Cubit<AuraUIState> {
     emit(state.copyWith(isPlaying: false, statusMessage: "Aura Uykuya Geçti"));
   }
 
-  // Faz 3: Kaydırma işlemi artık OS'in oynatıcısına sinyal gönderiyor
   Future<void> skip() async {
     if (!state.isPlaying || _currentStreams.isEmpty) return;
     HapticFeedback.lightImpact(); 
-    
+    debugPrint('⏭️ [AURA_ACTION] Kullanıcı frekansı atladı (Skip).');
     if (_player.hasNext) {
       emit(state.copyWith(statusMessage: "Crossfade: Frekans atlanıyor..."));
       await _player.seekToNext();
     } else {
-      // Liste bittiyse tekrar fetch at
       await _handleStateTransition(state.mode);
     }
   }
@@ -92,6 +89,7 @@ class AuraCubit extends Cubit<AuraUIState> {
     if (!state.isPlaying || _isDisliking) return;
     _isDisliking = true;
     HapticFeedback.heavyImpact(); 
+    debugPrint('🚫 [AURA_ACTION] Kullanıcı frekansı sevmedi (Dislike). Öğrenme algoritması tetiklendi.');
     
     emit(state.copyWith(statusMessage: "Aura öğreniyor... Yeni frekans taranıyor."));
     
@@ -112,31 +110,39 @@ class AuraCubit extends Cubit<AuraUIState> {
     TimeContext time = _contextEngine.getCurrentTimeContext();
     WeatherContext weather = _contextEngine.getCurrentWeatherContext();
     String country = _contextEngine.getCurrentCountry();
+    
     String tag = _memoryEngine.getBestTag(newMode, time, weather, country);
+    debugPrint('\n🧠 ================= AURA BEYNİ =================');
+    debugPrint('🏃 Biyolojik Mod: ${newMode.name.toUpperCase()}');
+    debugPrint('🌤️ Hava Durumu: ${weather.name.toUpperCase()}');
+    debugPrint('🌍 Lokasyon: $country');
+    debugPrint('🎯 Seçilen Müzik Türü (Tag): $tag');
+    debugPrint('================================================\n');
 
     if (state.mode != newMode) {
-      HapticFeedback.mediumImpact(); // Sensör hysteresis eklendiği için artık sürekli titremeyecek
+      HapticFeedback.mediumImpact();
     }
 
     emit(state.copyWith(mode: newMode, weather: weather, statusMessage: "Frekans hizalanıyor..."));
     
     try {
-      _currentStreams = await _audioRepo.getAudioStreams(tag);
+      _currentStreams = await _audioRepo.getAudioStreams(tag: tag, country: country);
       if (currentId != _transitionId) return;
 
       if (_currentStreams.isNotEmpty) {
+        debugPrint('📻 [AURA_NETWORK] ${country} ülkesi için ${_currentStreams.length} istasyon bulundu.');
         await _loadPlaylistAndPlay(_currentStreams);
       } else {
         emit(state.copyWith(statusMessage: "Sinyal boşluğu."));
       }
     } catch (e) {
       if (currentId == _transitionId) {
+        debugPrint('🚨 [AURA_NETWORK] Hata oluştu: $e');
         emit(state.copyWith(statusMessage: "Sinyal Kaybı. Yeniden deneniyor..."));
       }
     }
   }
 
-  // Kilit ekranında tam kontrol için ConcatenatingAudioSource
   Future<void> _loadPlaylistAndPlay(List<AudioStream> streams) async {
     await _smartFadeOut();
     

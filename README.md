@@ -17,5 +17,10 @@
 - **Data Sources:** Radio-Browser API, Piped/Invidious API, Local Storage.
 
 ## 🤖 Geliştirme
+```bash
+flutter clean
+flutter pub get
+flutter run | grep "flutter"
+```
 
 Lütfen `docs/INSTRUCTIONS.md` , `docs/INSTRUCTIONS.md`, `docs/SPEC.md`, `AURA_ARCHITECTURE_SPEC.md` ve `docs/CHANGELOG.md`  dosylarını okuyarak geliştirmeye devam edin.
