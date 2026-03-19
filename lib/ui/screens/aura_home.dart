@@ -21,7 +21,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    // Nefes Alan AURA Logosu İçin
     _breathController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -31,7 +30,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOutSine),
     );
 
-    // Sıvı Arka Plan Hareketi İçin
     _fluidController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
@@ -45,7 +43,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Duruma ve Havaya Göre Sıvı Renklerini Belirleyen Zeka
   List<Color> _getFluidColors(AuraState mode, WeatherContext weather, bool isPlaying) {
     if (!isPlaying) return [Colors.black87, Colors.black, Colors.black54];
 
@@ -58,7 +55,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
           ? [Colors.deepPurple.shade900, Colors.indigo.shade900, Colors.black87]
           : [Colors.teal.shade900, Colors.blue.shade900, Colors.indigo.shade900];
     } else {
-      // Focus
       return [Colors.blueGrey.shade900, Colors.teal.shade900, Colors.black87];
     }
   }
@@ -71,7 +67,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
       builder: (context, state) {
         final colors = _getFluidColors(state.mode, state.weather, state.isPlaying);
         
-        // Enerji modunda sıvı daha hızlı akar
         _fluidController.duration = Duration(seconds: state.mode == AuraState.energy ? 5 : 12);
         if (!_fluidController.isAnimating) _fluidController.repeat();
 
@@ -87,15 +82,19 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
             },
             onHorizontalDragEnd: (details) {
               if (!state.isPlaying) return;
-              if (details.primaryVelocity! < 0) {
+              
+              // Yanlışlıkla dokunmaları engellemek için hız (velocity) filtresi eklendi
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity < -300) { 
+                // Sola hızlı kaydırma (Dislike)
                 context.read<AuraCubit>().dislikeAndLearn();
-              } else if (details.primaryVelocity! > 0) {
+              } else if (velocity > 300) {
+                // Sağa hızlı kaydırma (Skip)
                 context.read<AuraCubit>().skip();
               }
             },
             child: Stack(
               children: [
-                // --- SIVI MESH GRADIENT ARKA PLAN ---
                 if (state.isPlaying)
                   AnimatedBuilder(
                     animation: _fluidController,
@@ -105,7 +104,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
                           _buildFluidBlob(colors[0], size, 0, 1.0),
                           _buildFluidBlob(colors[1], size, math.pi / 2, 0.8),
                           _buildFluidBlob(colors[2], size, math.pi, 1.2),
-                          // Büyüleyici Bulanıklık (Blur) Katmanı
                           BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
                             child: Container(color: Colors.transparent),
@@ -115,7 +113,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
                     },
                   ),
 
-                // --- MERKEZİ AURA ARAYÜZÜ ---
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -154,7 +151,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // Zero-UI Görünmez Rehber
                 if (!state.isPlaying)
                   const Positioned(
                     bottom: 50,
@@ -175,7 +171,6 @@ class _AuraHomeState extends State<AuraHome> with TickerProviderStateMixin {
     );
   }
 
-  // Sıvı Damlaları (Blobs) Üreten Fonksiyon
   Widget _buildFluidBlob(Color color, Size size, double offset, double speedMultiplier) {
     final t = _fluidController.value * 2 * math.pi * speedMultiplier;
     final dx = math.sin(t + offset) * (size.width * 0.3);
