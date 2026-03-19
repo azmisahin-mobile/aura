@@ -18,12 +18,14 @@ class AuraMemoryEngine {
     if (state == AuraState.focus) tags.addAll(['ambient', 'neoclassical', 'study', 'coding']);
 
     // 2. Faz 3: Kültürel Bükücü (Reverse Geocoding)
+    // DÜZELTME: Radio-Browser ile uyumlu, veritabanında var olan gerçek etiketler.
     if (country.toLowerCase().contains("turkey") || country.toLowerCase().contains("türkiye")) {
-      if (state == AuraState.chill) tags.insert(0, 'turkish acoustic');
-      if (state == AuraState.energy) tags.insert(0, 'turkish rock');
+      if (state == AuraState.chill) tags.insertAll(0, ['turkce', 'slow', 'acoustic', 'anatolian']);
+      if (state == AuraState.energy) tags.insertAll(0, ['pop', 'turkish', 'rock']);
+      if (state == AuraState.focus) tags.insertAll(0, ['sufi', 'ney', 'instrumental']);
     }
     if (country.toLowerCase().contains("germany")) {
-      if (state == AuraState.energy) tags.insert(0, 'berlin techno');
+      if (state == AuraState.energy) tags.insert(0, 'berlin'); // Berlin techno vs.
     }
 
     // 3. Çevresel Bağlam
@@ -45,7 +47,7 @@ class AuraMemoryEngine {
       tags.insert(0, 'coffee');
     }
 
-    return tags.toSet().toList();
+    return tags.toSet().toList(); // Çift kayıtları önlemek için Set kullandık
   }
 
   String getBestTag(AuraState state, TimeContext time, WeatherContext weather, String country) {
@@ -60,7 +62,7 @@ class AuraMemoryEngine {
     
     if (tags.contains(dislikedTag)) {
       tags.remove(dislikedTag);
-      tags.add(dislikedTag);
+      tags.add(dislikedTag); // Dinlenmeyen türü ceza olarak kuyruğun sonuna it
       await _prefs.setStringList(key, tags);
     }
   }

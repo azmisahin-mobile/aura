@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.7.0] - AURA Phase 3 (Intelligence & Stability)
+### Added
+- **Kültürel Lokasyon Zekası (Reverse Geocoding):** Kullanıcının GPS koordinatından bulunduğu ülkeyi anlayan ve o ülkeye özgü (Örn: Türkiye için Anatolian, Sufi, Pop) frekansları seçen motor eklendi.
+- **Akıllı Buffer (Önbellekleme):** İnternet kopmalarına karşı sıradaki 10 ila 60 saniyelik ses verisini cihaz hafızasında tutan yapı `just_audio` üzerinden aktif edildi.
+- **Playlist Bağlamı (Kilit Ekranı Desteği):** Bulunan frekanslar tek bir ses dosyası yerine bir oynatma listesi (`ConcatenatingAudioSource`) olarak cihaza yüklendi. Artık ekran kapalıyken (Lock Screen) kulaklık tuşuyla veya ekrandan müzik değiştirilebiliyor.
+
+### Fixed
+- **Sensör Çıldırması (Hysteresis):** Koşu veya yürüme anında anlık sensör sapmalarından dolayı durumun sürekli değişip ekranın titremesine neden olan hata, 5-frame okuma filtresi (Hysteresis) ile düzeltildi.
+- **API Tag Eşleşmesi:** Ülkelere göre atanan spesifik etiketler, Radio-Browser altyapısında karşılığı olan geniş etiketlerle güncellendi.
+
+## [1.6.0] - Phase 2 (Fluid UI & Weather)
+### Added
+- Fluid Mesh Gradient (Sıvı Arka Plan).
+- Hava Durumu (Weather Context) bazlı müzik seçimi ve renk değişimi.
+- Haptic Feedback eklendi.
+- Kilit ekranında çalabilmesi için Foreground Service entegre edildi.
+
 ## [1.6.0] - 2026-03-19
 ### Added
 - **Fluid Mesh Gradient (Sıvı Arka Plan):** AURA'nın durumu (Enerji, Odak, Chill) ve Hava Durumuna (Güneşli, Yağmurlu) göre renk değiştiren, sıvı gibi akan organik ve nefes alan görsel arayüz tasarımı eklendi.
