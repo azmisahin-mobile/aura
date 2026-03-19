@@ -12,22 +12,25 @@ class AuraMemoryEngine {
   List<String> _generateSmartTags(AuraState state, TimeContext time, WeatherContext weather, String countryCode) {
     List<String> tags =[];
 
-    if (state == AuraState.chill) tags.addAll(['lofi', 'chillout', 'acoustic', 'downtempo']);
-    if (state == AuraState.energy) tags.addAll(['techno', 'house', 'upbeat', 'rock']);
-    if (state == AuraState.focus) tags.addAll(['ambient', 'neoclassical', 'study', 'coding']);
-
-    // KÜLTÜREL LOKASYON ZEKASI (Artık ülke koduna bakıyor)
+    // KÜLTÜREL LOKASYON ZEKASI (Türkiye'nin gerçek Radio-Browser etiketleri)
     if (countryCode == "TR") {
-      if (state == AuraState.chill) tags.insertAll(0, ['turkce', 'slow', 'acoustic', 'anatolian']);
-      if (state == AuraState.energy) tags.insertAll(0,['pop', 'turkish', 'rock', 'arabesque']);
-      if (state == AuraState.focus) tags.insertAll(0, ['sufi', 'ney', 'instrumental', 'tasavvuf']);
-    }
-    if (countryCode == "DE") {
+      if (state == AuraState.chill) tags.insertAll(0, ['slow', 'turkce', 'acoustic', 'jazz']);
+      if (state == AuraState.energy) tags.insertAll(0,['pop', 'hit', 'arabesk', 'turkce pop']);
+      if (state == AuraState.focus) tags.insertAll(0,['islamic', 'din', 'instrumental', 'klasik', 'slow']);
+    } 
+    else if (countryCode == "DE") {
       if (state == AuraState.energy) tags.insert(0, 'berlin'); 
+    } 
+    // Global Etiketler
+    else {
+      if (state == AuraState.chill) tags.addAll(['lofi', 'chillout', 'acoustic', 'downtempo']);
+      if (state == AuraState.energy) tags.addAll(['techno', 'house', 'upbeat', 'rock']);
+      if (state == AuraState.focus) tags.addAll(['ambient', 'neoclassical', 'study', 'coding']);
     }
 
-    if (weather == WeatherContext.rain && state == AuraState.chill) tags.insertAll(0, ['jazz', 'dark ambient']);
-    if (weather == WeatherContext.snow) tags.insertAll(0, ['cinematic', 'piano']);
+    // Çevresel ve Zaman Bükücüler
+    if (weather == WeatherContext.rain && state == AuraState.chill) tags.insertAll(0,['jazz', 'dark ambient']);
+    if (weather == WeatherContext.snow) tags.insertAll(0,['cinematic', 'piano']);
     if (weather == WeatherContext.clear && state == AuraState.energy) tags.insertAll(0, ['pop', 'synthwave']);
 
     if (time == TimeContext.night && state == AuraState.chill) tags.insert(0, 'sleep');

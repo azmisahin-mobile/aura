@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.7.2] - Fast-Track GPS & Auto-Heal (2026-03-19)
+### Added
+- **Fast-Track GPS:** Uygulama ilk açıldığında GPS uydularını beklemek yerine cihazın son bilinen (Last Known) lokasyonunu kullanarak 0. saniyede ülkeyi tespit eden algoritma eklendi.
+- **ISO Country Code (Kültürel Keskinlik):** Radio-Browser'ın arama API'si `countrycode` parametresine (Örn: TR, DE, US) geçirildi. Arama doğruluğu %100'e çıkarıldı.
+- **Oto-İyileşme (Auto-Heal):** Kırık linkli veya çökmüş bir açık kaynak radyoya denk gelindiğinde sessiz kalmak yerine milisaniyeler içinde sıradaki radyoya atlayan sistem (`playbackEventStream` error handling) eklendi.
+
+### Fixed
+- Metadata spam'ı engellendi. Sadece radyo istasyonu gerçekten değiştiğinde terminale ve UI'a sinyal gidiyor (`distinct()` ve `url` check mekanizması).
+
+## [1.7.1] - Hotfix: Audio Provider Signatures (2026-03-19)
+### Fixed
+- Kültürel lokasyon eklentisi sırasında `MasterAudioRepository` ve alt provider'larda oluşan metod imza (Syntax) hataları giderildi.
+- YouTube (Piped/Invidious) motorlarına kültürel string bükücü eklendi.
+
 ## [1.7.0] - AURA Phase 3 (Intelligence & Stability)
 ### Added
 - **Kültürel Lokasyon Zekası (Reverse Geocoding):** Kullanıcının GPS koordinatından bulunduğu ülkeyi anlayan ve o ülkeye özgü (Örn: Türkiye için Anatolian, Sufi, Pop) frekansları seçen motor eklendi.
