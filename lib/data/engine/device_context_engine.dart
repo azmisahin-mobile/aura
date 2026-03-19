@@ -25,25 +25,22 @@ class DeviceContextEngine implements IContextEngine {
   WeatherContext _currentWeather = WeatherContext.unknown;
   DateTime? _lastWeatherFetch;
   
-  // Kültürel Lokasyon
   String _currentCountry = "Unknown";
+  String _currentCountryCode = ""; // API için ISO kodu (Örn: TR)
 
-  // Hysteresis (Sensör Çıldırmasını Önleme)
-  final List<double> _magnitudes = [];
-  static const int _maxSamples = 10; // Daha geniş örneklem
+  final List<double> _magnitudes =[];
+  static const int _maxSamples = 10;
   int _consecutiveStableReads = 0;
   AuraState _potentialState = AuraState.focus;
 
   DeviceContextEngine(this._prefs) {
     final cachedWeatherCode = _prefs.getInt('last_weather_code');
     final cachedCountry = _prefs.getString('last_country');
+    final cachedCountryCode = _prefs.getString('last_country_code');
     
-    if (cachedWeatherCode != null) {
-      _currentWeather = _mapWeatherCode(cachedWeatherCode);
-    }
-    if (cachedCountry != null) {
-      _currentCountry = cachedCountry;
-    }
+    if (cachedWeatherCode != null) _currentWeather = _mapWeatherCode(cachedWeatherCode);
+    if (cachedCountry != null) _currentCountry = cachedCountry;
+    if (cachedCountryCode != null) _currentCountryCode = cachedCountryCode;
   }
 
   @override
@@ -70,14 +67,13 @@ class DeviceContextEngine implements IContextEngine {
 
       AuraState newState;
       if (avgMagnitude > 16.0) {
-        newState = AuraState.energy; // Eşik yükseltildi, koşu/hızlı yürüyüş
+        newState = AuraState.energy; 
       } else if (avgMagnitude > 12.0) {
-        newState = AuraState.chill; // Normal yürüyüş
+        newState = AuraState.chill; 
       } else {
-        newState = AuraState.focus; // Sabit / Masaüstü
+        newState = AuraState.focus; 
       }
 
-      // Hysteresis: Modun değişmesi için peş peşe 5 okumada aynı kalması lazım
       if (newState == _potentialState) {
         _consecutiveStableReads++;
         if (_consecutiveStableReads > 5) {
@@ -104,17 +100,25 @@ class DeviceContextEngine implements IContextEngine {
     _hasGpsPermission = (permission == LocationPermission.whileInUse || permission == LocationPermission.always);
 
     if (_hasGpsPermission) {
+      // HIZLI BAŞLANGIÇ: Uyduları beklemeden son konumu al
+      try {
+        Position? lastPos = await Geolocator.getLastKnownPosition();
+        if (lastPos != null) {
+          await _updateWeatherAndLocationIfNeeded(lastPos.latitude, lastPos.longitude);
+        }
+      } catch (_) {}
+
+      // Canlı akışı başlat
       Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium, 
-          distanceFilter: 50, // GPS Pil Optimizasyonu artırıldı
+          distanceFilter: 50, 
         ),
       ).listen((Position position) {
         _currentSpeedKmH = position.speed * 3.6;
         _updateWeatherAndLocationIfNeeded(position.latitude, position.longitude);
         _evaluateContext();
       }, onError: (e) {
-        debugPrint('GPS hatası: $e');
         _hasGpsPermission = false;
       });
     }
@@ -122,66 +126,56 @@ class DeviceContextEngine implements IContextEngine {
 
   Future<void> _updateWeatherAndLocationIfNeeded(double lat, double lon) async {
     final now = DateTime.now();
-    if (_lastWeatherFetch != null && now.difference(_lastWeatherFetch!).inMinutes < 30) {
-      return; 
-    }
+    if (_lastWeatherFetch != null && now.difference(_lastWeatherFetch!).inMinutes < 30) return; 
     _lastWeatherFetch = now;
     
-    // 1. Hava Durumu
     try {
       final uri = Uri.parse("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true");
       final res = await http.get(uri).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final code = data['current_weather']['weathercode'] as int;
+        final code = jsonDecode(res.body)['current_weather']['weathercode'] as int;
         _currentWeather = _mapWeatherCode(code);
         await _prefs.setInt('last_weather_code', code);
       }
-    } catch (e) {
-      debugPrint('⚠️ Hava durumu alınamadı: $e');
-    }
+    } catch (_) {}
 
-    // 2. Kültürel Lokasyon (Reverse Geocoding)
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(lat, lon);
       if (placemarks.isNotEmpty) {
         String country = placemarks.first.country ?? "Unknown";
-        if (country != _currentCountry) {
+        String countryCode = placemarks.first.isoCountryCode ?? "";
+        
+        if (countryCode != _currentCountryCode) {
           _currentCountry = country;
+          _currentCountryCode = countryCode;
           await _prefs.setString('last_country', country);
-          debugPrint('🌍 [CULTURE] Yeni Kültürel Alan Algılandı: $_currentCountry');
+          await _prefs.setString('last_country_code', countryCode);
+          debugPrint('🌍 [CULTURE] Biyolojik Alan Hizalandı: $_currentCountry ($countryCode)');
         }
       }
-    } catch (e) {
-      debugPrint('⚠️ Lokasyon çevrilemedi: $e');
-    }
+    } catch (_) {}
   }
 
   WeatherContext _mapWeatherCode(int code) {
-    if (code == 0 || code == 1) return WeatherContext.clear;
-    if (code >= 2 && code <= 48) return WeatherContext.cloudy;
-    if (code >= 51 && code <= 67) return WeatherContext.rain;
-    if (code >= 71 && code <= 86) return WeatherContext.snow;
+    if (code <= 1) return WeatherContext.clear;
+    if (code <= 48) return WeatherContext.cloudy;
+    if (code <= 67) return WeatherContext.rain;
+    if (code <= 86) return WeatherContext.snow;
     if (code >= 95) return WeatherContext.rain; 
     return WeatherContext.unknown;
   }
 
   void _evaluateContext() {
-    AuraState targetState = (_hasGpsPermission && _currentSpeedKmH > 25.0) 
-        ? AuraState.energy 
-        : _accelerometerState;
-
+    AuraState targetState = (_hasGpsPermission && _currentSpeedKmH > 25.0) ? AuraState.energy : _accelerometerState;
     if (_lastEmittedState == targetState) {
       _debounceTimer?.cancel();
       return;
     }
-
     if (_lastEmittedState == null) {
       _lastEmittedState = targetState;
       _stateController.add(targetState);
       return;
     }
-
     if (!(_debounceTimer?.isActive ?? false)) {
       _debounceTimer = Timer(const Duration(seconds: 3), () {
         _lastEmittedState = targetState;
@@ -200,4 +194,5 @@ class DeviceContextEngine implements IContextEngine {
 
   WeatherContext getCurrentWeatherContext() => _currentWeather;
   String getCurrentCountry() => _currentCountry;
+  String getCurrentCountryCode() => _currentCountryCode;
 }

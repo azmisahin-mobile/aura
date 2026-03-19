@@ -20,18 +20,12 @@ class RadioBrowserProvider implements IAudioProvider {
         final List<dynamic> data = jsonDecode(res.body);
         return data.map((e) => e['name'].toString()).toList();
       }
-    } catch (e) {
-      debugPrint('⚠️ [RADIO_BROWSER] DNS Discovery başarısız. Fallback node\'lar kullanılıyor.');
-    }
-    return [
-      "de1.api.radio-browser.info",
-      "nl1.api.radio-browser.info",
-      "at1.api.radio-browser.info",
-    ];
+    } catch (_) {}
+    return["de1.api.radio-browser.info", "nl1.api.radio-browser.info"];
   }
 
   @override
-  Future<List<AudioStream>> fetchStreams({required String tag, required String country}) async {
+  Future<List<AudioStream>> fetchStreams({required String tag, required String countryCode}) async {
     final nodes = await _getDynamicNodes();
     final bestNode = await _resolver.getFastestInstance(
       cacheKey: 'radio_browser_best_node',
@@ -39,24 +33,19 @@ class RadioBrowserProvider implements IAudioProvider {
       healthPath: '/json/stats',
     );
 
-    // 1. Önce o ülkede ara
-    debugPrint('📡 [API_CALL] Lokasyon bazlı aranıyor -> Ülke: $country | Tag: $tag');
-    List<AudioStream> streams = await _searchApi(bestNode, tag, country);
+    debugPrint('📡 [API_CALL] Ülke Kodu (ISO): $countryCode | Tag: $tag');
+    List<AudioStream> streams = await _searchApi(bestNode, tag, countryCode);
 
-    // 2. Ülkede bulamazsa tüm dünyada (Global) ara
-    if (streams.isEmpty) {
-      debugPrint('⚠️ [API_CALL] $country sınırlarında $tag bulunamadı. Tüm dünya taranıyor...');
+    if (streams.isEmpty && countryCode.isNotEmpty) {
+      debugPrint('⚠️ [API_CALL] Lokal sonuç bulunamadı. Global frekans taranıyor...');
       streams = await _searchApi(bestNode, tag, ""); 
     }
 
-    if (streams.isNotEmpty) {
-      return streams;
-    }
-    
-    throw Exception("Radyo yayını hiçbir yerde bulunamadı.");
+    if (streams.isNotEmpty) return streams;
+    throw Exception("Radyo yayını bulunamadı.");
   }
 
-  Future<List<AudioStream>> _searchApi(String node, String tag, String country) async {
+  Future<List<AudioStream>> _searchApi(String node, String tag, String countryCode) async {
     final queryParams = {
       'tag': tag,
       'limit': '15',
@@ -64,13 +53,12 @@ class RadioBrowserProvider implements IAudioProvider {
       'order': 'random',
     };
 
-    if (country.isNotEmpty && country != "Unknown") {
-      queryParams['country'] = country;
+    if (countryCode.isNotEmpty) {
+      queryParams['countrycode'] = countryCode; // API'NİN İSTEDİĞİ GERÇEK PARAMETRE
     }
 
     final uri = Uri.https(node, '/json/stations/search', queryParams);
-    
-    final response = await _client.get(uri, headers: {'User-Agent': 'Aura/1.7.1'}).timeout(const Duration(seconds: 5));
+    final response = await _client.get(uri, headers: {'User-Agent': 'Aura/1.7.2'}).timeout(const Duration(seconds: 5));
     
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -81,16 +69,11 @@ class RadioBrowserProvider implements IAudioProvider {
             return urlRes.isNotEmpty || url.isNotEmpty;
           })
           .map((s) => AudioStream(
-                name: s['name']?.toString().trim().isNotEmpty == true 
-                      ? s['name'].toString().trim() 
-                      : 'Bilinmeyen Sinyal',
-                url: (s['url_resolved']?.toString().trim().isNotEmpty == true)
-                      ? s['url_resolved']
-                      : s['url'],
+                name: s['name']?.toString().trim().isNotEmpty == true ? s['name'].toString().trim() : 'Sinyal',
+                url: s['url_resolved']?.toString().trim().isNotEmpty == true ? s['url_resolved'] : s['url'],
                 provider: 'RadioBrowser ($node)',
-              ))
-          .toList();
+              )).toList();
     }
-    return [];
+    return[];
   }
 }
