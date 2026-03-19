@@ -30,7 +30,7 @@ Future<void> main() async {
   
   final memoryEngine = AuraMemoryEngine(prefs);
   final apiResolver = ApiResolverEngine(prefs); 
-  final contextEngine = DeviceContextEngine();
+  final contextEngine = DeviceContextEngine(prefs);
   
   final audioRepo = MasterAudioRepository(
     primaryProvider: RadioBrowserProvider(apiResolver),

@@ -5,11 +5,14 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // EKLENDİ
 import '../../domain/entities/aura_state_enum.dart';
 import '../../domain/interfaces/i_context_engine.dart';
 
 class DeviceContextEngine implements IContextEngine {
+  final SharedPreferences _prefs; // HAFIZA EKLENDİ
   final StreamController<AuraState> _stateController = StreamController<AuraState>.broadcast();
+  
   AuraState? _lastEmittedState;
   Timer? _debounceTimer;
 
@@ -23,6 +26,15 @@ class DeviceContextEngine implements IContextEngine {
 
   final List<double> _magnitudes = [];
   static const int _maxSamples = 5;
+
+  DeviceContextEngine(this._prefs) {
+    // UYGULAMA AÇILIR AÇILMAZ SON HAVA DURUMUNU HAFIZADAN YÜKLE (GECİKMEYİ SIFIRLA)
+    final cachedWeatherCode = _prefs.getInt('last_weather_code');
+    if (cachedWeatherCode != null) {
+      _currentWeather = _mapWeatherCode(cachedWeatherCode);
+      debugPrint('⚡ [ENVIRONMENT] Hafızadan Hava Durumu Yüklendi: ${_currentWeather.name}');
+    }
+  }
 
   @override
   Stream<AuraState> get stateStream => _stateController.stream;
@@ -86,7 +98,6 @@ class DeviceContextEngine implements IContextEngine {
 
   Future<void> _updateWeatherIfNeeded(double lat, double lon) async {
     final now = DateTime.now();
-    // 30 dakikada bir hava durumu güncelle (Pil ve API tasarrufu)
     if (_lastWeatherFetch != null && now.difference(_lastWeatherFetch!).inMinutes < 30) {
       return; 
     }
@@ -97,8 +108,11 @@ class DeviceContextEngine implements IContextEngine {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final code = data['current_weather']['weathercode'] as int;
+        
         _currentWeather = _mapWeatherCode(code);
-        debugPrint('🌤️ [ENVIRONMENT] Çevresel Bağlam Çözüldü: ${_currentWeather.name.toUpperCase()}');
+        await _prefs.setInt('last_weather_code', code); // YENİ HAVA DURUMUNU HAFIZAYA YAZ
+        
+        debugPrint('🌤️ [ENVIRONMENT] Çevresel Bağlam Güncellendi: ${_currentWeather.name.toUpperCase()}');
       }
     } catch (e) {
       debugPrint('⚠️ [ENVIRONMENT] Hava durumu alınamadı: $e');
